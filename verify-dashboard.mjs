@@ -361,6 +361,48 @@ ok(/runs\/' \+ runId \+ '\/jobs/.test(js), '进度由云端步骤完成度实时
   }
 }
 
+/* ============ 上次刷新时间（刷新按钮下方小字）============ */
+{
+  ok(/id="last-refresh"/.test(html), '刷新按钮下方有「上次刷新」小字容器');
+  // 结构：小字必须在 #refresh 之后（即按钮下方），且包在同一个容器里
+  const iBtn = html.indexOf('id="refresh"'), iLast = html.indexOf('id="last-refresh"');
+  ok(iBtn > 0 && iLast > iBtn, '小字位于刷新按钮之后（按钮下方）');
+  // 必须被包在与按钮同一个 <div> 里，才会真的排在按钮下面（不是并排）
+  const iWrap = html.lastIndexOf('<div>', iBtn);
+  const iWrapEnd = html.indexOf('</div>', iWrap + 5);
+  ok(iWrap > 0 && iWrap < iBtn && iWrapEnd > iLast,
+    '小字与按钮同处一个容器、排在按钮之后（确保是"按钮下方"而非并排）');
+  ok(/#last-refresh\{[^}]*font-size:13\.5px/.test(html), '小字字号小于正文（13.5px）');
+  ok(/#last-refresh\{[^}]*text-align:right/.test(html), '小字右对齐，与按钮对齐');
+  ok(/function lastRefresh\(\)/.test(js) && /lastRefresh\(\);/.test(js), '页面载入时写入上次刷新时间');
+
+  /* 真实调用格式化函数：北京时间、格式正确、缺数据不猜 */
+  const bodyOf2 = (sig) => {
+    const i = js.indexOf(sig);
+    if (i < 0) return '';
+    let d = 0, started = false;
+    for (let k = i; k < js.length; k++) {
+      const c = js[k];
+      if (c === '{') { d++; started = true; }
+      else if (c === '}') { d--; if (started && d === 0) return js.slice(i, k + 1); }
+    }
+    return '';
+  };
+  try {
+    const api2 = new Function(bodyOf2('function fmtRefreshTime') + '\nreturn fmtRefreshTime;')();
+    // 线上真实值：2026-09-29T21:26:06Z = 北京时间 2026年9月30日5时26分
+    ok(api2('2026-09-29T21:26:06.303Z') === '2026年9月30日5时26分',
+      `UTC 21:26 应显示为北京时间次日 5时26分（实际「${api2('2026-09-29T21:26:06.303Z')}」）`);
+    // 补零检查：1月1日0时0分不能显示成 01
+    ok(api2('2026-01-01T00:00:00Z') === '2026年1月1日8时0分', '个位数月/日/时不补零');
+    // 跨年跨月边界
+    ok(api2('2025-12-31T16:00:00Z') === '2026年1月1日0时0分', '跨年时刻按北京时间归入新年');
+    // 缺数据不猜
+    ok(api2('') === '' && api2(undefined) === '' && api2('乱七八糟') === '', '时间缺失或非法时返回空（不显示错误时间）');
+    ok(/DATA\.builtAt \|\| DATA\.generatedAt/.test(js), '时间取自云端构建时刻 builtAt（回退 generatedAt）');
+  } catch (e) { ok(false, '抽取 fmtRefreshTime — ' + e.message); }
+}
+
 /* 第 16 轮：页脚只保留「当前平台 … 点击岗位标题可跳转至岗位页面」一行，其余全部删除 */
 const bodyHtml14 = html.replace(/<script id="payload"[\s\S]*?<\/script>/, '');
 ok(!/id="foot"/.test(bodyHtml14) && !/elFoot\b/.test(js), '【第16轮】页脚统计行（收录/评分 75 分以上）已删除');

@@ -225,6 +225,7 @@ var elTabs = document.getElementById('tabs'),
     elGrid = document.getElementById('grid'),
     elSort = document.getElementById('sort'),
     elStamp = document.getElementById('stamp'),
+    elLastRefresh = document.getElementById('last-refresh'),
     elNotice = document.getElementById('notice'),
     elFootPlat = document.getElementById('foot-plat');
 
@@ -583,8 +584,25 @@ function stamp(){
   var ds = d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate();
   elStamp.textContent = '!VERSION! ● ' + ds + ' ——林小夕';
 }
+/** 上次刷新时间 → 「2026年9月30日5时26分」
+    固定按北京时间（UTC+8，不随访客时区变化），不补零。
+    offsetMin 显式传入是为了让测试可复现：不依赖运行机器的时区。
+    时间取自云端构建时刻：每次刷新都会重新生成数据与页面，所以它就是上次刷新的时间。 */
+function fmtRefreshTime(iso, offsetMin){
+  var d = new Date(iso);
+  if (!iso || isNaN(d.getTime())) return '';   // 时间缺失或非法就不显示，不猜
+  var off = typeof offsetMin === 'number' ? offsetMin : 480;
+  var t = new Date(d.getTime() + off * 60000);
+  return t.getUTCFullYear() + '年' + (t.getUTCMonth() + 1) + '月' + t.getUTCDate() + '日'
+    + t.getUTCHours() + '时' + t.getUTCMinutes() + '分';
+}
+function lastRefresh(){
+  if (!elLastRefresh) return;
+  var t = fmtRefreshTime(DATA.builtAt || DATA.generatedAt);
+  elLastRefresh.textContent = t ? '上次刷新：' + t : '';
+}
 document.title = '岗位看板';
 
 elSort.value = state.sort;
-render(); stamp();
+render(); stamp(); lastRefresh();
 })();
