@@ -41,19 +41,17 @@ if (hasIdx) {
 }
 
 /* ---------- 2. 脱敏 ---------- */
-const PII = [
-  ['姓名', /吴家良/],
-  ['学校', /广东财经大学/],
-  ['籍贯', /云浮/],
-  ['现居（本人）', /"city":"广州市海珠区"/],
-  ['生日', /2003\/08|2003-08/],
-  ['手机号', /1[3-9]\d{9}/],
-  ['QQ号', /2580769551/],
-  ['实习公司', /谷雨生物|骆驼户外|欢创信息|星火教育/],
-];
-for (const [name, re] of PII) {
-  const m = html.match(re);
-  ok(!m, `已脱敏 · ${name}` + (m ? `（仍出现：${m[0]}）` : ''));
+/* 判定逻辑抽在 dist-sanitize.mjs，测试脚本共用同一份实现。
+   注意：只能查「个人画像 / 页面署名」区域——岗位数据里出现任何公司名都合法
+   （例：珠海星火教育、欢创信息本身就是招聘方），拿整页扫会误报。 */
+const { piiRegions, findLeaks, PII_RULES } = await import('./dist-sanitize.mjs');
+const { profile: profRegion, chrome: chromeRegion } = piiRegions(html);
+console.log(`（画像区 ${profRegion.length} 字 · 署名区 ${chromeRegion.length} 字；岗位数据不计入）\n`);
+const leaks = findLeaks(html);
+const leakMap = new Map(leaks.map((l) => [l.name, l]));
+for (const [name] of PII_RULES) {
+  const hit = leakMap.get(name);
+  ok(!hit, `已脱敏 · ${name}` + (hit ? `（仍出现于${hit.region}：${hit.hit}）` : ''));
 }
 if (P) {
   const prof = P.profile || {};
