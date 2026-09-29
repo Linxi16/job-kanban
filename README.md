@@ -1,0 +1,70 @@
+# 岗位看板（智联招聘 + 前程无忧）
+
+手机/电脑上点击「刷新数据」按钮，即可在云端重新抓取岗位、评分、更新看板。
+
+## 数据更新方式
+
+**只支持手动触发**，没有任何定时任务。
+
+三种触发方式，任选其一：
+
+1. **看板页面上的「刷新数据」按钮**（手机、电脑均可）
+   - 首次点击会提示粘贴 GitHub 令牌（只存在本机浏览器，不会上传）
+2. **手机 GitHub App** → 本仓库 → Actions → 「更新岗位数据」→ Run workflow
+3. **网页** → https://github.com/Linxi16/job-kanban/actions → 「更新岗位数据」→ Run workflow
+
+单次更新耗时约 **10–12 分钟**：
+
+| 平台 | 抓取规模 | 耗时 |
+|---|---|---|
+| 智联招聘 | 8 关键词 × 6 城市 × 2 页 | ≈5.7 分钟 |
+| 前程无忧 | 8 关键词 × 4 城市 × 2 页 | ≈4.8 分钟 |
+
+请求间隔固定 5 秒（避免给对方站点造成压力），因此耗时无法压缩。
+
+## 抓取规模调整
+
+在 `.github/workflows/update.yml` 的「抓取双平台最新岗位」步骤里改环境变量：
+
+| 变量 | 含义 | 当前值 |
+|---|---|---|
+| `ZL_KWS` / `QC_KWS` | 搜索关键词 | 8 个 |
+| `ZL_CITIES` / `QC_CITIES` | 城市 | 智联 6 个 / 前程 4 个 |
+| `ZL_PAGES` / `QC_PAGES` | 每个关键词翻几页 | 2 |
+| `GAP_MS` | 请求间隔（毫秒） | 5000 |
+
+## 评分口径
+
+- 基础分 50，加分上限 70，总分上限 100
+- 达到 **75 分**才进入推荐列表
+- 薪资过滤：**区间上限 < 6000 才过滤**（未标明薪资不误杀）
+- 模块占比：只统计 JD 职责里提到的模块，按 5% 刻度分配，合计 100%
+- 信息来源以 **JD 正文为准**，JD 未提及才参考发布信息
+
+## 目录说明
+
+| 路径 | 内容 |
+|---|---|
+| `.github/workflows/update.yml` | 云端更新流程（抓取 → 评分 → 战报 → 构建 → 发布） |
+| `cloud/fetch-all.mjs` | 双平台抓取脚本 |
+| `score-engine.mjs` | 评分与判定引擎 |
+| `export-report.mjs` | 生成 CSV 与汇总报告 |
+| `build-dashboard.mjs` | 把数据打包成单文件看板 |
+| `verify-dashboard.mjs` | 看板校验（113 项） |
+| `templates/dashboard.html` `templates/dashboard.js` | 看板设计模板（页面结构与全部样式） |
+| `岗位看板/` | 战报与 CSV 产物 |
+| `dist/` | 发布到 Pages 的站点 |
+| `归档/` | 历史快照（只保留最近 15 份） |
+| `data/` | 抓取原始数据与评分结果 |
+
+## 本地运行
+
+```bash
+node cloud/fetch-all.mjs     # 抓取
+node score-engine.mjs        # 评分
+node export-report.mjs       # 战报
+node build-dashboard.mjs     # 构建看板
+node verify-dashboard.mjs    # 校验
+```
+
+本地打开看板：双击 `岗位看板/看板.html` 即可（单文件、零外部依赖、可离线）。
