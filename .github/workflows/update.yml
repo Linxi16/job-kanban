@@ -62,12 +62,15 @@ jobs:
       - name: 校验看板
         run: node verify-dashboard.mjs
 
-      - name: 归档快照
+      - name: 归档快照（只保留最近 15 份）
         run: |
           mkdir -p 归档
           D=$(date +%Y%m%d-%H%M)
           cp dist/看板.html "归档/看板-$D.html" || true
           cp dist/看板数据.json "归档/看板数据-$D.json" || true
+          ls -1t 归档/看板-*.html 2>/dev/null | tail -n +16 | xargs -r rm -f
+          ls -1t 归档/看板数据-*.json 2>/dev/null | tail -n +16 | xargs -r rm -f
+          echo "归档文件数: $(ls -1 归档 | wc -l)"
 
       - name: 提交结果到仓库
         run: |
