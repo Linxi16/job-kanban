@@ -1,0 +1,13 @@
+{
+ "generatedAt": "2026-09-29T19:05:37.164Z",
+ "dataDir": "/home/runner/work/job-kanban/job-kanban/data",
+ "gapMs": 3800,
+ "probe": false,
+ "platform": "zhilian",
+ "zhilian": {
+  "count": 60,
+  "reqs": 32,
+  "fails": 19,
+  "minutes": 2.9
+ }
+}
