@@ -1,0 +1,32 @@
+# ===== 临时/本地产物（云端 git add -A 会带上来的垃圾，必须排除）=====
+
+# 临时脚本与测试夹具（回归用例 --make 生成的目录也在此列）
+.tmp-*/
+
+# 一次性探测脚本
+probe-*.mjs
+.tmp-*.mjs
+
+# 已被 fetch-all.mjs 取代的旧爬虫
+51job-spider.mjs
+zhilian-spider.mjs
+
+# 本地文件备份
+*.bak
+*.corrupt.bak
+
+# 云端每跑一次就新增的时间戳快照，不入库（只在本地产出）
+归档/
+
+# 抓取中间产物（本地调试用；分片文件由云端 artifact 传递，无需入库）
+data/fetch-report-*.json
+data/zhilian-detail.json
+data/51job-fresh-guangzhou.json
+
+# 依赖与系统噪音
+node_modules/
+npm-debug.log*
+*.log
+Thumbs.db
+desktop.ini
+.DS_Store

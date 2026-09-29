@@ -76,19 +76,28 @@ if (dl.length) {
   ok(w.path === 'data', `下载目录应为 data，实际 ${w.path}`);
 }
 const stepNames = (r.steps || []).map((s) => s.name || '');
+// 回归用例步骤名在这里定义一次，避免和 update.yml 各写一遍导致改一处漏一处
+const CASE_STEPS = ['回归用例（应届生判定）', '回归用例（硬过滤：实习 / 方向 / 地域 / 薪资 / 年薪·日薪·时薪换算）'];
+// 纯函数单测步骤：直接 node 跑，不需要 --make/--check 两阶段
+const UNIT_STEPS = ['回归用例（经验年限解析）'];
 for (const want of ['合并分片', '评分与判定', '构建看板（本地完整版）', '校验看板（本地完整版）',
-                    '回归用例（应届生判定）', '回归用例（硬过滤：实习 / 方向 / 地域 / 薪资）',
+                    ...CASE_STEPS, ...UNIT_STEPS,
                     '构建看板（云端发布版·脱敏）', '校验发布版（结构 + 脱敏）', '归档快照（只保留最近 10 份）',
                     '提交结果到仓库', '发布到 GitHub Pages']) {
   ok(stepNames.includes(want), `refresh 缺少步骤「${want}」`);
 }
 // 回归用例必须在"构建看板"之前：判定逻辑改坏了要在发布前失败，而不是发出去
-const idxCase = stepNames.indexOf('回归用例（应届生判定）');
+const idxCase = stepNames.indexOf(CASE_STEPS[0]);
 const idxBuild = stepNames.indexOf('构建看板（本地完整版）');
 ok(idxCase > -1 && idxBuild > -1 && idxCase < idxBuild, '回归用例应排在构建看板之前');
-for (const nm of ['回归用例（应届生判定）', '回归用例（硬过滤：实习 / 方向 / 地域 / 薪资）']) {
+for (const nm of CASE_STEPS) {
   const s = (r.steps || []).find((x) => x.name === nm);
   ok(s && /--make/.test(s.run) && /--check/.test(s.run), `${nm}: 要跑 --make 与 --check`);
+}
+for (const nm of UNIT_STEPS) {
+  const s = (r.steps || []).find((x) => x.name === nm);
+  ok(s && /node\s+test-[\w-]+\.mjs/.test(s.run), `${nm}: 应直接跑 node test-*.mjs`);
+  ok(s && stepNames.indexOf(nm) < idxBuild, `${nm}: 应排在构建看板之前`);
 }
 const mergeStep = (r.steps || []).find((s) => s.name === '合并分片');
 ok(mergeStep && String(mergeStep.run).includes('cloud/merge-shards.mjs'), '合并分片应调用 cloud/merge-shards.mjs');
@@ -106,6 +115,45 @@ const trigKeys = Object.keys(trig || {});
 ok(trigKeys.length === 1 && trigKeys[0] === 'workflow_dispatch', `只应有 workflow_dispatch 触发，实际 ${trigKeys}`);
 ok(wf.permissions && wf.permissions.contents === 'write' && wf.permissions.pages === 'write', 'permissions 需含 contents/pages: write');
 ok(wf.concurrency && wf.concurrency.group === 'job-refresh', 'concurrency.group 应为 job-refresh');
+
+// ---------- 云端可用性守卫 ----------
+// 工作流里出现的每个 node 脚本都必须「本地存在」且「在推送清单里」。
+// 否则云端 checkout 后跑不到该文件 → 整条流水线在最后一步前才失败（曾漏掉 test-exp-parse.mjs）。
+const runText = (r.steps || []).map((s) => String(s.run || '')).join('\n')
+  + '\n' + ['zhilian', 'qc'].flatMap((n) => (jobs[n]?.steps || []).map((s) => String(s.run || ''))).join('\n');
+const usedScripts = [...new Set([...runText.matchAll(/node\s+([\w./-]+\.mjs)/g)].map((m) => m[1]))].sort();
+ok(usedScripts.length >= 6, `应能解析出工作流调用的脚本，实际 ${usedScripts.length} 个`);
+const missingLocal = usedScripts.filter((p) => !fs.existsSync(p));
+ok(missingLocal.length === 0, `工作流调用的脚本本地不存在：${missingLocal}`);
+
+let manifest = [];
+if (fs.existsSync('.tmp-manifest.mjs')) {
+  const src = fs.readFileSync('.tmp-manifest.mjs', 'utf8');
+  const arr = src.match(/const PUSH = \[([\s\S]*?)\];/);
+  if (arr) {
+    // 必须逐行剥掉注释再取条目：否则被注释掉的 'x.mjs' 仍会被当成"清单里有"
+    // （字符串 includes 判定会被注释文本骗过，守卫就形同虚设）
+    const body = arr[1].split('\n').map((l) => l.replace(/\/\/.*$/, '')).join('\n');
+    manifest = [...body.matchAll(/'([^']+)'/g)].map((m) => m[1]);
+  }
+}
+ok(manifest.length > 0, '应能从 .tmp-manifest.mjs 解析出推送清单');
+const notPushed = usedScripts.filter((p) => !manifest.includes(p));
+ok(notPushed.length === 0, `工作流调用但不在推送清单里的脚本（云端会 file-not-found）：${notPushed}`);
+// 清单里的条目必须本地都在（否则 gh-upload 会因缺文件失败）
+const manifestMissing = manifest.filter((p) => !fs.existsSync(p));
+ok(manifestMissing.length === 0, `推送清单里本地缺失的文件：${manifestMissing}`);
+// 垃圾文件不得进清单（云端 git add -A 会连带提交）
+const junk = manifest.filter((p) => /^\.tmp-|^probe-|spider\.mjs$|\.bak$|^归档\//.test(p));
+ok(junk.length === 0, `推送清单里不应含临时/垃圾文件：${junk}`);
+// .gitignore 必须存在且覆盖测试夹具目录（否则云端每次都会重推 .tmp-*）
+ok(fs.existsSync('.gitignore'), '.gitignore 必须存在（云端 git add -A 依赖它排除临时产物）');
+if (fs.existsSync('.gitignore')) {
+  const gi = fs.readFileSync('.gitignore', 'utf8');
+  ok(/^\.tmp-\*\/?$/m.test(gi), '.gitignore 需忽略 .tmp-*（回归夹具目录）');
+  ok(/^归档\/$/m.test(gi), '.gitignore 需忽略 归档/');
+  ok(/spider\.mjs/m.test(gi), '.gitignore 需忽略旧爬虫脚本');
+}
 
 console.log(`\n工作流校验：✅ ${pass} 项通过${fail ? `，❌ ${fail} 项失败` : ''}`);
 process.exit(fail ? 1 : 0);

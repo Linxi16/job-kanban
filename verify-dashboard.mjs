@@ -197,6 +197,12 @@ ok(srcDist['JD任职要求'] > 0 && srcDist['发布信息'] > 0,
   `经验来源两类都有（JD ${srcDist['JD任职要求'] || 0} 条 / 发布 ${srcDist['发布信息'] || 0} 条）`);
 ok(!allJobs.some((j) => j.expFrom && !j.expRaw), '标了来源的岗位必有经验原文');
 ok(/(发布信息)/.test(gridQC), '发布信息来源的经验在卡片上标注「（发布信息）」');
+// 薪资必须是"月薪"口径：年薪（"万/年"）已在引擎里 ÷12，不能出现月薪 6 位数
+const salBad = allJobs.filter((j) => j.salaryMinNum != null && j.salaryMinNum >= 60000);
+ok(salBad.length === 0, `薪资月薪口径正确（未把年薪当月薪，异常 ${salBad.length} 条）`);
+const salYear = allJobs.filter((j) => /年/.test(String(j.salaryText || '')));
+ok(salYear.every((j) => j.salaryMinNum != null || /面议/.test(String(j.salaryText))),
+  `年薪制岗位完成月薪换算（${salYear.length} 条）`);
 const modNames = ['规划', '招聘', '培训', '薪酬', '绩效', '员关', '行政', 'BP'];
 const modHit = modNames.filter((m) => new RegExp('>' + m + '<').test(gridQC));
 ok(modHit.length >= 4, `工作模块标签使用固定 8 类名（本页命中 ${modHit.length} 类：${modHit.join('、')}）`);

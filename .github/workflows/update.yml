@@ -155,11 +155,15 @@ jobs:
           DATA_DIR=.tmp-fresh-real node score-engine.mjs
           node test-fresh-bug.mjs --check
 
-      - name: 回归用例（硬过滤：实习 / 方向 / 地域 / 薪资）
+      - name: 回归用例（硬过滤：实习 / 方向 / 地域 / 薪资 / 年薪·日薪·时薪换算）
         run: |
           node test-hard-filter.mjs --make
           DATA_DIR=.tmp-hard-filter node score-engine.mjs
           node test-hard-filter.mjs --check
+
+      # 纯函数单测：经验年限解析口径（含"N年以上"为主条件、"1-3年"取下限等边界）
+      - name: 回归用例（经验年限解析）
+        run: node test-exp-parse.mjs
 
       - name: 构建看板（本地完整版）
         run: node build-dashboard.mjs

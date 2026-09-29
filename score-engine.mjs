@@ -94,6 +94,14 @@ const SEC_ASK  = /任\s*职\s*要\s*求|任\s*职\s*资\s*格|岗\s*位\s*要\s*
 // 只在【】标记、或行首编号后紧跟小节词时断行，避免把正文句子切断
 const SEC_BREAK = /(【[^】\n]{2,14}】|(?:^|(?<=\n))[ \t\u00a0\u3000]*[一二三四五六七八九十]{1,2}[、.．)）](?=[^\n]{0,8}?(?:职责|要求|资格|条件|内容|待遇|福利|亮点|简介|流程|对象|发展|倾向|说明)))/gm;
 
+/**
+ * 经验年限「区间」的分隔符集合 —— 平台/JD 里出现过的全部写法：
+ *   半角 -  波浪 ~ ～  汉字 至/到  连接号 – (U+2013)  破折号 — (U+2014)  不换行连字符 ‑ (U+2011)
+ * 注意**不能**把「、」「.」「）」当区间符：那是列表编号分隔（"2、1年以上"= 第2条要求1年），
+ * 混进来会把"第2条 1年"误读成区间"2-1年"，从而把门槛算错。
+ */
+const EXP_RANGE_SEP = '[\\-~～—–‑至到]';
+
 const MODULES = [
   { label: '规划', re: /(人力资源|人力|人事|组织|人才|编制)[^，。；\n]{0,8}(规划|盘点|梯队|体系搭建)|(规划|盘点|搭建|优化|完善)[^，。；\n]{0,8}(人力资源|人力|组织架构|人才梯队|人员编制|职级体系)|组织架构|人才梯队|(编制|人才)[^，。；\n]{0,6}(规划|盘点|梯队)|年度[^，。；\n]{0,4}(人力|人员|招聘|编制)[^，。；\n]{0,4}(规划|预算|计划)/ },
   { label: '招聘', re: /(招聘|招募|简历筛选|面试|校招|社招|雇主品牌|人才引进|人员配置|招聘渠道)/ },
@@ -264,10 +272,33 @@ function splitJdSections(jd) {
   // 要求段的终止标题：福利/待遇/作息/联系方式等一旦出现，就不再属于"任职要求"。
   // （否则"福利待遇：应届毕业生到岗可报销路费"会被算进要求段，当成招收声明。）
   const tailRe = /(福利待遇|薪酬福利|福利|待遇|薪资待遇|公司福利|员工福利|我们提供|我们能给|你将获得|联系方式|简历投递|投递方式|工作地点|工作时间|上班时间|面试地址|备注|加分项|其他说明)/;
-  const dm = t.match(dutyRe);
-  const rm = t.match(reqRe);
-  const di = dm ? dm.index : -1;
-  const ri = rm ? rm.index : -1;
+
+  // 标题形态：行首（可带空格）或紧跟在"一、/二./1、/(一)"这类序号之后。
+  // 为什么必须这样判：职责正文里常出现"梳理各岗位任职资格、岗位说明书"这类**引用**，
+  // 直接取首个匹配会把要求段的起点锚在职责文本中间，导致真正的"二、任职要求"
+  // 被当成正文、要求段被截空，经验门槛只能回落到发布信息。
+  // 实测漏网：安徽帮益把「人事专员」的"3 年及以上企业独立招聘经验"因此完全没被读到。
+  const isHeadingAt = (idx, re) => {
+    const m = re.exec(t.slice(idx));
+    if (!m || m.index !== 0) return false;
+    const lineStart = t.lastIndexOf('\n', idx - 1) + 1;
+    const before = t.slice(lineStart, idx);
+    if (/^[ \t\u00a0\u3000]*$/.test(before)) return true;                  // 行首
+    return /[一二三四五六七八九十\d]{1,3}\s*[、.．)）]\s*$/.test(before); // "二、" / "1."
+  };
+  /** 优先取「标题形态」的首次出现；没有标题形态才退回首次出现 */
+  const pickHeading = (re) => {
+    const g = new RegExp(re.source, 'g');
+    let m;
+    const hits = [];
+    while ((m = g.exec(t))) hits.push(m.index);
+    if (!hits.length) return -1;
+    const head = hits.find((i) => isHeadingAt(i, re));
+    return head !== undefined ? head : hits[0];
+  };
+
+  const di = pickHeading(dutyRe);
+  const ri = pickHeading(reqRe);
   if (ri < 0) return { duty: di >= 0 ? t.slice(di) : '', req: '', hasReqSection: false };
   // 职责段从职责标题到要求标题（或到文末）
   const duty = di >= 0 && di < ri ? t.slice(di, ri) : '';
@@ -285,22 +316,70 @@ function splitJdSections(jd) {
 
 /**
  * 抽取 JD 里的**最低**经验年限（准入下限）。
- *   "1-3年" → 1（下限能覆盖，不算超范围）
- *   "2-3年" / "3-5年" → 2 / 3（下限定在 2 以上，1～3年也投不了 → 超范围）
- *   "2年以上" / "2年及以上" / "满2年" → 2
- *   无年限表述 → null
+ *
+ * 关键：要求是**分条**写的，条与条之间是"且"的关系，条内"或"才是可选。
+ *   · "2年以上制造业招聘经验，1年以上海外岗位招聘经验" → 两条都要 → 门槛 2（不是 1）
+ *   · "3年以上人事行政工作经验，其中1年以上制造业经验" → 第二条是"其中"细分 → 门槛 3
+ *   · "5-7年HRBP工作经验，1年以上HR团队管理经验"        → 门槛 5
+ *   · "1-3年招聘或猎头经验"                              → 条内"或" → 门槛 1
+ *   · "1年以上招聘经验（主管岗需3年以上）"               → 主管岗是替代路径 → 门槛 1
+ *
+ * 所以算法是：**先按条取下限，再取条间最大值**；条内多个候选（"或"/"、"并列）
+ * 取最小值，这样"或"的可选关系不会被误当成"且"。
+ *
+ * 早先的实现是把整段所有数字取一个 min，于是"2年以上"总被旁边的"1年以上"
+ * 稀释成 1 年（线上真实漏网：彩讯科技 HRBP 写了"2年以上HRBP经验，至少1年互联网
+ * 行业背景"，被读成 1 年 → 83 分进推荐档）。
  */
 function extractMinYearsFromJd(text) {
   const t = String(text || '');
-  const out = [];
-  let m;
-  const rangeRe = /(\d+)\s*[-~～—–至到]\s*(\d+)\s*年/g;   // 区间取下限
-  while ((m = rangeRe.exec(t))) out.push(Number(m[1]));
-  const aboveRe = /(\d+)\s*年(?:及|以)?(?:以上|起|经验)/g; // "2年以上" / "2年经验"
-  while ((m = aboveRe.exec(t))) out.push(Number(m[1]));
-  const fullRe = /(?:满|需|要求|至少)\s*(\d+)\s*年/g;
-  while ((m = fullRe.exec(t))) out.push(Number(m[1]));
-  return out.length ? Math.min(...out) : null;
+  if (!t.trim()) return null;
+
+  // 单个候选里取"最低年限"：区间取下限，"3年以上"取 3
+  const CAND = new RegExp(
+    '(\\d+)\\s*' + EXP_RANGE_SEP + '\\s*\\d+\\s*年'                 // "1-3年" / "2–4年"（区间取下限）
+    + '|(\\d+)\\s*年\\s*(?:及|以)?\\s*(?:以上|起|前)'                // "2年以上" / "2年及以上"
+    + '|(\\d+)\\s*年\\s*(?:以下|以内)'                              // "1年以下"
+    + '|(\\d+)\\s*年\\s*(?:以上\\s*)?(?:相关)?(?:工作)?经验'         // "2年经验" / "2年以上相关工作经验"
+    + '|(?:满|需|要求|至少)\\s*(\\d+)\\s*年',                        // "满2年" / "至少2年"
+    'g',
+  );
+  const floorOfClause = (clause, useRange) => {
+    const g = new RegExp(CAND.source, 'g');
+    const nums = [];
+    let m;
+    while ((m = g.exec(clause))) {
+      const v = m.slice(1).find((x) => x != null);
+      if (v != null) nums.push(Number(v));
+    }
+    if (!nums.length) return null;
+    // 区间型（"1-3年"）本身已取下限，无歧义
+    if (useRange && nums.length === 1) return nums[0];
+    return Math.min(...nums);
+  };
+
+  // "其中N年以上X经验"是**前一条的细分约束**（"3年以上人事经验，其中1年以上制造业经验"），
+  // 不是可选路径，不能参与取最小；它写的年限只会更高，去掉不影响门槛。
+  // 真正的可选路径（"1-3年招聘或猎头经验"）在**同一条内**，仍走下面的 min。
+  const t2 = t.replace(/[，,]\s*(?:其中|且|并)[^，,。；;\n]{0,12}?\d+\s*年[^，,。；;\n]{0,14}/g, '');
+
+  // 按"条"切分：换行 / 分号 / 条列编号（"，2、"）/ 并列年限条件（"，1年以上管理经验" "/ "，至少1年…"）
+  const clauses = t2
+    .split(/[\n\r；;]+/)
+    .flatMap((x) => x.split(/[，,]\s*(?=\d+\s*[、.．)）]|(?:至少|满|需|要求)\s*\d+\s*年|\d+\s*年)/))
+    .map((x) => x.trim())
+    .filter(Boolean);
+
+  const floors = [];
+  for (const c of clauses) {
+    const f = floorOfClause(c, true);
+    if (f !== null) floors.push(f);
+  }
+  if (!floors.length) {
+    const f = floorOfClause(t, false);
+    return f;
+  }
+  return Math.max(...floors);
 }
 
 /**
@@ -419,73 +498,103 @@ function expIsOutOfRange(freshOk, expResult) {
   return expResult.years !== null && expResult.years >= 2;
 }
 
-/** 岗位发布信息里的经验要求 → 年数（-1 表示不限，null 表示未知） */
+/**
+ * 岗位发布信息里的经验要求 → 年数（-1 表示不限，null 表示未知）
+ *
+ * 口径必须是**准入下限**，与 JD 侧 extractMinYearsFromJd 保持一致：
+ *   "1-3年" → 1（1 年经验就能投 → 不超范围）
+ *   "2-3年"/"3-5年"/"2年以上" → 2/3/2（下限定在 2 以上 → 超范围）
+ * 早先这里返回的是**区间上限**（"1-3年"→3），导致发布信息写"1-3年"的岗位
+ * 被误判为"要求 3 年经验"而整批拦掉，与用户口径"1～3年也算"直接冲突。
+ */
 function expFromLabel(label) {
   const s = String(label || '');
   if (!s) return null;
   // 注意：「经验不限」「不限经验」必须先于数字兜底判定
-  // （否则 "经验不限" 里的 "1年以下" 之类不会被抓，但 "1-3年" 会被误读）
   if (/经验不限|不限经验|不限|无要求|无经验/.test(s)) return -1;
   if (/1年以下|一年以下|应届/.test(s)) return 0;
-  if (/1-3年|1~3年|一至三年/.test(s)) return 3;
-  if (/3-5年|3~5年|三至五年/.test(s)) return 5;
-  if (/5-10年|5~10年/.test(s)) return 10;
+  if (/1-3年|1~3年|一至三年/.test(s)) return 1;
+  if (/3-5年|3~5年|三至五年/.test(s)) return 3;
+  if (/5-10年|5~10年/.test(s)) return 5;
   if (/10年以上/.test(s)) return 99;
   if (/2年/.test(s)) return 2;
   const m = s.match(/(\d+)/);
   return m ? Number(m[1]) : null;
 }
 
-/** 薪资 → 最高月薪（元）：用于「薪资低于 6k」过滤（区间上限都到不了 6k 才算低薪） */
-function parseSalaryMax(text) {
-  const s = String(text || '');
+/**
+ * 薪资串 → 「区间 + 口径」的统一解析。
+ *
+ * 口径（unit）有三类，都换算成**月薪（元）**再比较，否则无法和用户的 6k 门槛对齐：
+ *   月薪：元 / 千 / 万 / k           —— "4.5-5.5千"、"9000-12000元"
+ *   年薪：带"/年""每年""年薪"时 ÷12  —— "12-14万/年"（否则 25 万会被当成月薪 25 万）
+ *   日薪：元/天 ÷  ── 按 21.75 个工作日/月 折算（劳动法月计薪天数）
+ *   时薪：元/小时 ÷  ── 按 8 小时/天 × 21.75 天 折算
+ *
+ * 日薪/时薪必须折算再比：兼职岗"250 元/天"约合 5438 元/月，低于 6k 门槛；
+ * 之前既不折算也解析不出（正则要求 4~6 位数字），结果**低薪兼职直接漏过薪资过滤**，
+ * 还出现过"150-200元/天"被 4~6 位兜底读成 200000 的错值。
+ */
+function parseSalaryRange(text) {
+  const s = String(text || '').trim();
   if (!s || /面议|谈判|薪资面议/.test(s)) return null;
-  let m = s.match(/(\d+(?:\.\d+)?)\s*[-~至]\s*(\d+(?:\.\d+)?)\s*万/);
-  if (m) return parseFloat(m[2]) * 10000;
-  m = s.match(/(\d+(?:\.\d+)?)\s*[-~至]\s*(\d+(?:\.\d+)?)\s*千/);
-  if (m) return parseFloat(m[2]) * 1000;
-  m = s.match(/(\d{4,6})\s*[-~至]\s*(\d{4,6})\s*元/);
-  if (m) return Number(m[2]);
-  m = s.match(/(\d+(?:\.\d+)?)\s*[-~至]\s*(\d+(?:\.\d+)?)\s*[kK]/);
-  if (m) return parseFloat(m[2]) * 1000;
-  m = s.match(/(\d+(?:\.\d+)?)\s*[-~至]\s*(\d+(?:\.\d+)?)/);
-  if (m) { const hi = parseFloat(m[2]); return hi >= 1000 ? hi : hi * 1000; }
-  m = s.match(/(\d+(?:\.\d+)?)\s*万/);
-  if (m) return parseFloat(m[1]) * 10000;
-  m = s.match(/(\d+(?:\.\d+)?)\s*千/);
-  if (m) return parseFloat(m[1]) * 1000;
-  m = s.match(/(\d{4,6})/);
-  if (m) return Number(m[1]);
+
+  // 口径判定
+  const isDaily = /\/\s*[天日]|元?\s*每\s*[天日]|天\s*薪/.test(s);
+  const isHourly = /\/\s*(?:小时|时|h|H)|每小时|时\s*薪/.test(s);
+  const isYear = /年薪|\/\s*年|每\s*年|年\s*薪/.test(s);
+  const perMonth = isHourly ? 8 * 21.75 : isDaily ? 21.75 : 1;
+  const perYear = isYear ? 12 : 1;
+  // 统一换算因子：原始数字 → 月薪
+  const conv = (n) => {
+    if (isHourly || isDaily) return n * perMonth;
+    return n / perYear;
+  };
+
+  // 单位权重（把不同单位统一成"元"）
+  const U = '(万|千|[kK]|元)';
+  const unitMul = (u) => (u === '万' ? 10000 : u === '千' ? 1000 : u === '元' ? 1 : 1000);
+
+  // ① 区间 "a-b 单位"
+  let m = s.match(new RegExp(`(\\d+(?:\\.\\d+)?)\\s*[-~～—–至到]\\s*(\\d+(?:\\.\\d+)?)\\s*${U}?`));
+  if (m) {
+    const mul = unitMul(m[3]);
+    let lo = parseFloat(m[1]) * mul;
+    let hi = parseFloat(m[2]) * mul;
+    // 无单位时按数量级兜底：>=1000 视为元，否则视为千
+    if (!m[3]) { if (lo < 1000 && !isDaily && !isHourly) lo *= 1000; if (hi < 1000 && !isDaily && !isHourly) hi *= 1000; }
+    return { min: conv(lo), max: conv(hi) };
+  }
+  // ② 单一数值
+  m = s.match(new RegExp(`(\\d+(?:\\.\\d+)?)\\s*${U}`));
+  if (m) {
+    const v = parseFloat(m[1]) * unitMul(m[2]);
+    return { min: conv(v), max: conv(v) };
+  }
+  // ③ 纯数字兜底
+  m = s.match(/(\d+(?:\.\d+)?)/);
+  if (m) {
+    let v = parseFloat(m[1]);
+    if (v < 1000 && !isDaily && !isHourly) v *= 1000;
+    return { min: conv(v), max: conv(v) };
+  }
   return null;
+}
+
+/**
+ * 薪资 → 最高月薪（元）：用于「薪资低于 6k」过滤（区间上限都到不了 6k 才算低薪）
+ */
+function parseSalaryMax(text) {
+  const r = parseSalaryRange(text);
+  return r ? Math.round(r.max) : null;
 }
 
 /**
  * 薪资 → 最低月薪（元） */
 function parseSalaryMin(text) {
-  const s = String(text || '');
-  if (!s || /面议|谈判|薪资面议/.test(s)) return null;
-  // 万
-  let m = s.match(/(\d+(?:\.\d+)?)\s*[-~至]\s*(\d+(?:\.\d+)?)\s*万/);
-  if (m) return parseFloat(m[1]) * 10000;
-  // 千
-  m = s.match(/(\d+(?:\.\d+)?)\s*[-~至]\s*(\d+(?:\.\d+)?)\s*千/);
-  if (m) return parseFloat(m[1]) * 1000;
-  // 元
-  m = s.match(/(\d{4,6})\s*[-~至]\s*(\d{4,6})\s*元/);
-  if (m) return Number(m[1]);
-  // k
-  m = s.match(/(\d+(?:\.\d+)?)\s*[-~至]\s*(\d+(?:\.\d+)?)\s*[kK]/);
-  if (m) return parseFloat(m[1]) * 1000;
-  // 单一数值
-  m = s.match(/(\d+(?:\.\d+)?)\s*万/);
-  if (m) return parseFloat(m[1]) * 10000;
-  m = s.match(/(\d+(?:\.\d+)?)\s*千/);
-  if (m) return parseFloat(m[1]) * 1000;
-  m = s.match(/(\d{4,6})/);
-  if (m) return Number(m[1]);
-  return null;
+  const r = parseSalaryRange(text);
+  return r ? Math.round(r.min) : null;
 }
-
 /** 公司规模 → 人数下限 / 分类
  *  档次按用户指定：20–99 / 100–499 / 500–999 / 1000–9999 / 10000以上
  *  加分（有档次，0～10）：10000以上 10；1000–9999 8；500–999 5；100–499 2；20–99 0
@@ -655,13 +764,26 @@ function scoreJob(job, platform, now) {
   let score = 50;
 
   // ---------- 硬过滤 ----------
-  // 0) 地域：必须在广东省内（前程用 jobArea 只按公司注册地过滤，会混入北京/苏州等异地岗位）
+  // 0) 地域：必须在广东省内
+  //    前程无忧的 jobAreaString 是「招聘工作地 / 分公司所在地」，对集团批量招聘会取总部，
+  //    例如中铁建工「人力资源管培生（广州）」city="北京·丰台区"，而 JD 第五节明写
+  //    "分子公司及工作地点：5.中铁建工集团第五建设有限公司（广州）" —— 只看 city 会误杀。
+  //    所以 city 不在广东时，再查标题括号里的地点（"（广州）""（深圳）"是平台标注的工作地）。
+  //    城市名匹配用黑名单优先：广东城市名尾字常与外省撞车（"永州"含"惠州"的"州"、
+  //    "苏州"含"州"），纯 includes 会把外省判成广东，所以先判外省地名。
   const GD_CITIES = ['广州', '深圳', '佛山', '东莞', '珠海', '中山', '惠州', '江门', '肇庆', '汕头', '湛江', '茂名', '韶关', '梅州', '汕尾', '河源', '阳江', '清远', '潮州', '揭阳', '云浮'];
+  const NON_GD = /北京|上海|天津|重庆|苏州|南京|无锡|常州|徐州|南通|扬州|盐城|泰州|镇江|连云港|宿迁|淮安|杭州|宁波|温州|嘉兴|绍兴|金华|台州|湖州|丽水|衢州|舟山|合肥|芜湖|福州|厦门|泉州|漳州|南昌|济南|青岛|烟台|潍坊|临沂|淄博|济宁|泰安|威海|郑州|洛阳|武汉|宜昌|襄阳|长沙|株洲|湘潭|衡阳|岳阳|常德|永州|郴州|邵阳|益阳|娄底|怀化|张家界|湘西|成都|绵阳|德阳|宜宾|泸州|南充|贵阳|昆明|南宁|柳州|桂林|海口|三亚|沈阳|大连|鞍山|抚顺|吉林|长春|哈尔滨|大庆|齐齐哈尔|石家庄|唐山|保定|廊坊|沧州|邯郸|太原|大同|西安|咸阳|宝鸡|渭南|兰州|西宁|银川|乌鲁木齐|呼和浩特|拉萨|香港|澳门|台湾|湖南|湖北|江西|江苏|浙江|安徽|福建|山东|河南|河北|山西|陕西|甘肃|青海|辽宁|吉林|黑龙江|四川|贵州|云南|广西|海南|西藏|宁夏|新疆|内蒙古|驻柬埔寨|柬埔寨|海外|越南|泰国|印尼|马来西亚|新加坡/;
   const jobCity = String(job.city || '').trim();
+  const gdIn = (s) => GD_CITIES.find((c) => String(s || '').includes(c)) || '';
+  let cityResolved = NON_GD.test(jobCity) ? '' : gdIn(jobCity);
   if (!jobCity) {
     negatives.push('工作地点未标明');
-  } else if (!GD_CITIES.some((c) => jobCity.includes(c))) {
-    negatives.push(`非广东省内（${jobCity}）`);
+  } else if (!cityResolved) {
+    // 标题里的括号地点：必须紧跟在括号内且长度很短，避免"人力资源经理（湖南永州）"这种被判成广东
+    const tm = String(title || '').match(/[（(]\s*([^）)]{2,8})\s*[）)]/g) || [];
+    const titleGd = tm.find((x) => !NON_GD.test(x) && gdIn(x));
+    if (titleGd) cityResolved = gdIn(titleGd);
+    else negatives.push(`非广东省内（${jobCity}）`);
   }
 
   // 1) 经验要求（校招应届生门槛）
@@ -819,8 +941,8 @@ function scoreJob(job, platform, now) {
   else if (salMin !== null && salMin < 7000 && salMaxNum !== null && salMaxNum < 7000) penalties.push({ k: `薪资偏低（${job.salaryText}）`, v: -6 });
 
   // ---------- 加分⑤：工作地点在广州 / 佛山（无档次，0 或 5）----------
-  const city = job.city || '';
-  if (/广州|佛山/.test(city)) bonuses.push({ k: `地点：${city}`, v: 5 });
+  // 用 cityResolved（可能是从标题括号补出来的工作地），否则"（广州）"这类岗位会漏加
+  if (/广州|佛山/.test(cityResolved)) bonuses.push({ k: `地点：${cityResolved}`, v: 5 });
 
   // ---------- 加分⑥：工作内容为多个模块（有档次，0～5）----------
   // 口径按用户指定：规划 / 招聘 / 培训 / 薪酬 / 绩效 / 员关 / 行政 / BP
@@ -936,6 +1058,8 @@ function scoreJob(job, platform, now) {
     expSource: expRes.source,
     expLabelYears,
     expLabelRaw: String(job.workYear || '').trim(),   // 发布信息的经验原文（仅当 JD 未提及时才采信）
+    salaryMinNum: salMin,      // 引擎实际用于判定的月薪下限（"万/年"已 ÷12）
+    salaryMaxNum: salMaxNum,   // 引擎实际用于判定的月薪上限（用于"薪资低于6k"过滤）
     daysAgo,
     roleKey: roleHit ? roleHit.key : (OFF_TARGET.test(title) ? '不相关' : '其它'),
     jobDescFull: jd,
@@ -1012,7 +1136,10 @@ function load51job() {
   }));
 }
 
-// ============ 主流程 ============
+// ============ 主流程（仅直接运行时执行；被 import 时只导出纯函数供单测使用）============
+const isMainModule = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
+
+if (isMainModule) {
 const now = new Date();
 const out = { generatedAt: now.toISOString(), profile: PROFILE, platforms: {} };
 
@@ -1086,3 +1213,6 @@ for (const [key, label, loader] of [['zhilian', '智联招聘', loadZhilian], ['
 
 fs.writeFileSync(path.join(DATA, 'dashboard-data.json'), JSON.stringify(out, null, 1), 'utf8');
 console.log(`\n✅ 已写出 data/dashboard-data.json`);
+}
+
+export { extractMinYearsFromJd, expFromLabel, parseSalaryMin, parseSalaryMax, resolveExpYears, expIsOutOfRange, detectFreshOk };
