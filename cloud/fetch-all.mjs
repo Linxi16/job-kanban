@@ -45,8 +45,19 @@ const ZL_CITIES = (process.env.ZL_CITIES || '广州,佛山,深圳,东莞').split
 const ZL_PAGES = Math.min(Number(process.env.ZL_PAGES || 2), 5);
 const ZL_CAP = Number(process.env.ZL_CAP || 2000);
 
-function extractInitialState(html) {
-  const i = html.indexOf('__INITIAL_STATE__');
+/**
+ * 智联搜索页的 SSR 里内嵌了完整 JD：positionList[i].jobDetailData.position.desc.description
+ * （实测 19/20 条有内容，最长 4600+ 字）——等于白拿，无需再抓详情页。
+ */
+function zlEmbeddedJD(j) {
+  const d = j && j.jobDetailData;
+  const raw = d && d.position && d.position.desc && d.position.desc.description;
+  if (!raw) return { jd: '', hasDetail: false };
+  const jd = String(raw).replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').trim();
+  return { jd, hasDetail: jd.length > 20 };
+}
+
+function extractInitialState(html) {  const i = html.indexOf('__INITIAL_STATE__');
   if (i < 0) return null;
   const eq = html.indexOf('=', i);
   if (eq < 0) return null;
@@ -67,7 +78,7 @@ function extractInitialState(html) {
 async function fetchZhilian() {
   const all = [];
   const seen = new Set();
-  let reqs = 0, fails = 0;
+  let reqs = 0, fails = 0, jdHit = 0;
   const t0 = Date.now();
   console.log(`\n===== 智联招聘：${ZL_KWS.length} 关键词 × ${ZL_CITIES.length} 城市 × ${ZL_PAGES} 页 =====`);
 
@@ -94,8 +105,10 @@ async function fetchZhilian() {
             const key = j.number || j.jobId;
             if (!key || seen.has(key)) continue;
             seen.add(key);
-            all.push({ ...j, __city: city, __kw: kw });
+            const emb = zlEmbeddedJD(j);
+            all.push({ ...j, __city: city, __kw: kw, jobDescFull: emb.jd, hasDetail: emb.hasDetail });
             added++;
+            if (emb.hasDetail) jdHit++;
           }
           console.log(`  p${p} ${city}/${kw}: HTTP ${r.status} 取${list.length} 新增${added} 累计${all.length}`);
           if (!list.length) fails++;
@@ -112,6 +125,7 @@ async function fetchZhilian() {
   const mins = ((Date.now() - t0) / 60000).toFixed(1);
   const hitCapZ = all.length >= ZL_CAP;
   console.log(`智联完成：${all.length} 条唯一岗位 | ${reqs} 次请求（失败 ${fails}） | ${mins} 分钟`);
+  console.log(`  内嵌 JD 覆盖：${jdHit}/${all.length} 条（${(jdHit / Math.max(1, all.length) * 100).toFixed(0)}%）`);
   if (hitCapZ) console.log(`  ⚠️ 已达到上限 ${ZL_CAP} 条，提前结束抓取（本次未跑完全部组合）`);
   return { count: all.length, reqs, fails, minutes: Number(mins) };
 }

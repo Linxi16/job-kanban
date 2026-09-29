@@ -731,7 +731,11 @@ function loadZhilian() {
   }
   return list.map((x) => {
     const det = details[x.number] || {};
-    const hasDetail = !!det.jd;
+    // 云端抓取已把智联列表内嵌的 JD 提取到 jobDescFull；老数据可能只有详情页
+    const embJD = String(x.jobDescFull || '').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').trim();
+    const detJD = String(det.jd || '').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').trim();
+    const jd = embJD || detJD;
+    const hasDetail = jd.length > 20;
     return {
       id: String(x.number || x.jobId || ''),
       title: det.name || x.name || '',
@@ -748,7 +752,7 @@ function loadZhilian() {
       url: det.zlUrl || x.positionURL || '',
       tags: (x.jobSkillTags || []).map((t) => t.name || t),
       welfareFromPost: [...(det.welfareLabel || []), ...(det.welfareTags || [])],
-      jd: String(det.jd || '').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').trim(),
+      jd,
       hasDetail,
     };
   });
