@@ -54,7 +54,9 @@ button:disabled{opacity:.5;cursor:default}
 #refresh-progress.on{display:block}
 .pbar{display:flex;align-items:center;gap:12px}
 .pbar .ptrack{flex:1;height:12px;background:#e6ecf3;border-radius:999px;overflow:hidden;box-shadow:inset 0 1px 2px rgba(15,23,42,.06)}
-.pbar .pfill{height:100%;width:0%;border-radius:999px;background:linear-gradient(90deg,#facc15,#22c55e);transition:width .5s ease}
+/* display:block 是必须的：.pfill 是 <span>，若按 inline 渲染则 height/width 全部失效，
+   结果只剩浅蓝轨道、看不到黄绿渐变（曾误以为"没有颜色"）。min-width 保证刚开始也有可见进度。 */
+.pbar .pfill{display:block;height:100%;width:0%;min-width:0;border-radius:999px;background:linear-gradient(90deg,#facc15,#22c55e);transition:width .5s ease}
 #refresh-progress.done .pfill{background:linear-gradient(90deg,#22c55e,#15803d)}
 .pbar .pnote{font-size:15.5px;color:var(--ink3);white-space:nowrap;font-variant-numeric:tabular-nums}
 

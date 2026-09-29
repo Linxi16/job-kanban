@@ -28,7 +28,7 @@ if (P) {
 }
 ok(/id="refresh"/.test(html), '刷新按钮存在');
 ok(/id="refresh-progress"/.test(html) && /id="pfill"/.test(html) && /id="pnote"/.test(html), '进度条结构完整');
-ok(/DAILY_LIMIT\s*=\s*3/.test(html), '每日刷新上限 3 次');
+ok(/DAILY_LIMIT\s*=\s*5/.test(html), '每日刷新上限 5 次');
 ok(/今日剩余次数：/.test(html) && /alert\('无剩余次数'\)/.test(html), '次数提示文案完整');
 
 /* 站点根路径可直接访问（手机不用输文件名） */

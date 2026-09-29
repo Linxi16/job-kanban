@@ -259,7 +259,7 @@ if (nodes.sort.onchange) {
 ok(typeof nodes.refresh.onclick === 'function', '刷新按钮已绑定事件');
 
 /* ============ 第21轮：每日刷新次数上限 + 抓取进度条 ============ */
-ok(/DAILY_LIMIT\s*=\s*3/.test(js), '每日刷新上限为 3 次');
+ok(/DAILY_LIMIT\s*=\s*5/.test(js), '每日刷新上限为 5 次');
 ok(/wjl-refresh-quota/.test(js), '刷新次数按本地记录累计');
 ok(/o\.d\s*!==\s*todayKey\(\)/.test(js) && /return 0/.test(js), '跨天自动重置次数（每日凌晨归零）');
 ok(/alert\('无剩余次数'\)/.test(js), '次数用尽提示「无剩余次数」');
@@ -269,13 +269,97 @@ ok(/setQuota\([^)]*\)|本次不计入次数/.test(js), '触发失败时不消耗
 ok(/id="refresh-progress"/.test(html) && /id="pfill"/.test(html) && /id="pnote"/.test(html), '进度条结构存在（轨道 + 填充 + 百分比）');
 ok(/#refresh-progress\{display:none/.test(html) && /#refresh-progress\.on\{display:block\}/.test(html), '进度条默认隐藏，仅刷新时显示');
 ok(/\.pfill\{[^}]*background:linear-gradient/.test(html), '进度条带颜色渐变');
+/* 曾出过的真 bug：.pfill 是 <span> 却没设 display，按 inline 渲染时
+   height/width 全部失效 → 只剩浅蓝轨道、渐变完全不可见（被报"进度条没有颜色"）。 */
+ok(/\.pfill\{[^}]*display:block/.test(html), '进度填充为块级元素（否则 span 的 inline 会让 width/height 失效、渐变不可见）');
+ok(/\.ptrack\{[^}]*overflow:hidden/.test(html), '进度轨道裁剪填充圆角');
 ok(/#facc15/.test(html) && /#22c55e/.test(html), '【第22轮】进度条为 黄色→绿色 渐变');
+ok(/#refresh-progress\.done \.pfill\{[^}]*linear-gradient/.test(html) && /className = 'on done'/.test(js),
+  '完成后切换 .done 深绿渐变（CSS 与脚本都已接上，不再是死规则）');
 ok(/POLL_MS\s*=\s*30000/.test(js), '【第22轮】每 30 秒查询一次云端进度');
 ok(!/setTimeout\(poll, (6000|10000|15000)\)/.test(js), '【第22轮】旧的 6/10/15 秒轮询已清除');
-ok(/setProgress\(100/.test(js), '完成后进度到 100%');
 ok(/hideBar\(\)/.test(js), '刷新结束/失败后隐藏进度条');
 ok(/runs\/' \+ runId \+ '\/jobs/.test(js), '进度由云端步骤完成度实时推算');
-ok(/function pollSteps/.test(js) && /s\.status === 'completed'/.test(js), '按已完成步骤数计算百分比');
+
+/* ---------- 进度算法与运行状态：真实调用纯函数做行为断言 ----------
+   原先这两处只有字符串正则（「含 linear-gradient 就算过」这种），
+   所以两个真 bug 一直没被发现：
+     1) 进度只看 jobs[0]，而 GitHub 返回顺序随机 → 第一个 job 跑完就显示 100%
+     2) queued/in_progress/success 之外的状态一律当失败 → 刚触发的 requested/pending
+        会弹「云端更新失败：null」（云端其实没失败）
+   下面用真实运行的数据结构喂进函数断言，改坏了必然失败。 */
+{
+  /* 按花括号配平抽取函数体，不用「结尾在行首的 }」这种靠缩进的脆弱写法
+     （JOB_WEIGHT 是单行结束的 `} };`，用 /\n};/ 会一路吃到后面的函数）。 */
+  const bodyOf = (sig) => {
+    const i = js.indexOf(sig);
+    if (i < 0) return '';
+    let d = 0, started = false;
+    for (let k = i; k < js.length; k++) {
+      const c = js[k];
+      if (c === '{') { d++; started = true; }
+      else if (c === '}') { d--; if (started && d === 0) return js.slice(i, k + 1); }
+    }
+    return '';
+  };
+  const lineOf = (sig) => { const i = js.indexOf(sig); return i < 0 ? '' : js.slice(i, js.indexOf('\n', i)); };
+  const defs = [lineOf('var JOB_WEIGHT'), bodyOf('function progressOfJobs'), bodyOf('function runState')].join('\n')
+    + '\nreturn { progressOfJobs: progressOfJobs, runState: runState };';
+  let api = null;
+  try { api = new Function(defs)(); ok(typeof api.progressOfJobs === 'function' && typeof api.runState === 'function', '进度与状态算法可供实测调用'); }
+  catch (e) { ok(false, '抽取进度函数 — ' + e.message); }
+
+  if (api) {
+    // 真实运行 36630919724 的结构：6 个抓取分片（8 步）+ refresh（25 步）
+    const scraper = (n, done) => ({
+      name: `抓取智联招聘（分片 ${n}：广州,佛山）`, status: done ? 'completed' : 'in_progress',
+      steps: Array.from({ length: 8 }, (_, i) => ({
+        name: i === 3 ? `抓取智联招聘（分片 ${n}：广州,佛山）` : 'x', status: i < done ? 'completed' : 'in_progress', conclusion: null,
+      })),
+    });
+    const refresh = (done) => ({
+      name: 'refresh', status: done >= 25 ? 'completed' : 'in_progress',
+      steps: Array.from({ length: 25 }, (_, i) => ({ name: i === done ? '评分与判定' : 'x', status: i < done ? 'completed' : 'in_progress', conclusion: i < done ? 'success' : null })),
+    });
+
+    // ① 关键回归：第一个 job 已跑完、refresh 一步没开始 —— 绝不能报 100%
+    const premature = api.progressOfJobs([scraper(1, 8), scraper(2, 8), scraper(3, 8), scraper(4, 8), scraper(5, 8), scraper(6, 8), refresh(0)]);
+    ok(premature.pct < 90, `旧 bug 回归：抓取全部完成但 refresh 未开始时进度不应到 100%（实际 ${premature.pct}%）`);
+    ok(premature.note.indexOf('评分与判定') >= 0, `提示应指向尚未开始的 refresh 步骤（实际「${premature.note}」）`);
+    // ② 全部完成才 100%
+    const allDone = api.progressOfJobs([scraper(1, 8), refresh(25)]);
+    ok(allDone.pct === 100, `全部 job 完成后应为 100%（实际 ${allDone.pct}%）`);
+    // ③ 进度单调不回退（模拟一次真实运行的全过程）
+    let prev = -1, mono = true;
+    for (let d = 0; d <= 25; d++) {
+      const p = api.progressOfJobs([scraper(1, 8), scraper(2, 8), refresh(d)]).pct;
+      if (p < prev) mono = false;
+      prev = p;
+    }
+    ok(mono, '进度单调不回退（0→25 步全过程无倒退）');
+    // ④ 刚触发还没 job 时给排队提示而不是 100%
+    const empty = api.progressOfJobs([]);
+    ok(empty.pct <= 10 && /排队/.test(empty.note), `尚无 job 时应显示排队（实际 ${empty.pct}%「${empty.note}」）`);
+    // ⑤ 最后一个 job 收尾时不应提前显示 100%
+    const tail = api.progressOfJobs([scraper(1, 8), refresh(22)]);
+    ok(tail.pct <= 96, `最后阶段不应提前到 100%（实际 ${tail.pct}%）`);
+
+    /* 运行状态：requested/pending 不得被判成失败 */
+    const NOW = Date.now();
+    const fresh = (status, conclusion) => ({ id: 9, status, conclusion, created_at: new Date(NOW).toISOString() });
+    const oldRun = { id: 8, status: 'completed', conclusion: 'success', created_at: new Date(NOW - 3600e3).toISOString() };
+    ok(api.runState(fresh('requested', null), null, NOW) === 'mine', 'requested（刚触发）应视为本次运行在跑，不得判失败');
+    ok(api.runState(fresh('pending', null), null, NOW) === 'mine', 'pending 应视为本次运行在跑，不得判失败');
+    ok(api.runState(fresh('queued', null), null, NOW) === 'mine', 'queued 应视为本次运行在跑');
+    ok(api.runState(fresh('in_progress', null), null, NOW) === 'mine', 'in_progress 应视为本次运行在跑');
+    ok(api.runState(fresh('completed', 'success'), null, NOW) === 'done', 'completed+success 才算完成');
+    ok(api.runState(oldRun, null, NOW) === 'busy', '比触发时刻更早的旧运行不得被当成本次结果');
+    ok(api.runState(oldRun, 8, NOW) === 'mine', '一旦锁定本次 run id，就只认这个 id');
+    ok(api.runState(null, null, NOW) === 'busy', '还没查到 run 时应继续等待');
+    ok(api.runState({ id: 9, status: 'weird-new-status', conclusion: null, created_at: new Date(NOW).toISOString() }, null, NOW) === 'busy',
+      '未知状态应继续等待，绝不误报「云端更新失败」');
+  }
+}
 
 /* 第 16 轮：页脚只保留「当前平台 … 点击岗位标题可跳转至岗位页面」一行，其余全部删除 */
 const bodyHtml14 = html.replace(/<script id="payload"[\s\S]*?<\/script>/, '');

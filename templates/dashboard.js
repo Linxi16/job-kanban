@@ -413,6 +413,60 @@ function ghFetch(url, opt){
   if (opt.method === 'POST') h['Content-Type'] = 'application/json';
   return fetch(url, { method: opt.method || 'GET', headers: h, body: opt.body, cache: 'no-store' });
 }
+
+/* ---------- 进度推算（纯函数，可单测）----------
+   进度必须看「全部 job」，不能只看某一个：
+   GitHub 返回的 jobs 顺序是随机的，而 refresh（25 步）比抓取分片（各 8 步）
+   重得多。以前取 jobs[0]，只要第一个 job 跑完就直接显示 100%，
+   实际上 refresh 一步没开始——进度条卡在 100% 一两分钟（曾以为是"卡住"）。
+   各 job 按实测耗时加权（抓取分片 8/70，refresh 22/110），累计权重 70。 */
+var JOB_WEIGHT = { scraper: { steps: 8, sec: 70 }, refresh: { steps: 22, sec: 110 } };
+function progressOfJobs(jobs){
+  jobs = jobs || [];
+  var totalW = 0, doneW = 0, actName = '', actFin = 0, actTotal = 0, actJob = null, actOrder = -1;
+  jobs.forEach(function(j){
+    var isRefresh = /refresh|构建|评分/i.test(j.name || '');
+    var spec = isRefresh ? JOB_WEIGHT.refresh : JOB_WEIGHT.scraper;
+    var live = (j.steps || []).filter(function(s){ return s.conclusion !== 'skipped'; });
+    var fin = live.filter(function(s){ return s.status === 'completed'; }).length;
+    var prog = live.length ? Math.min(1, fin / Math.max(live.length, spec.steps)) : 0;
+    totalW += spec.sec; doneW += spec.sec * prog;
+    // 提示文字取"最靠前且未完成"的 job（refresh 优先，因为它最耗时）
+    if (j.status !== 'completed') {
+      var idx = isRefresh ? 1 : 0;
+      if (idx > actOrder) { actOrder = idx; actJob = j; actName = ''; actFin = fin; actTotal = live.length; }
+      if (j === actJob && !actName && live.length) {
+        var a = live.filter(function(s){ return s.status !== 'completed'; })[0];
+        if (a) actName = a.name.replace(/（.*?）/g, '').replace(/^抓取双平台最新岗位$/, '抓取岗位中');
+      }
+    }
+  });
+  if (!jobs.length) return { pct: 5, note: '云端排队中…' };
+  if (!actJob) return { pct: 100, note: '正在发布…' };
+  var pct = totalW ? Math.round(doneW / totalW * 100) : 5;
+  if (pct > 96) pct = 96;   // 最后一个 job 收尾时先停在 96%，真正完成才到 100%
+  return { pct: pct, note: (actName || '处理中') + ' ' + (actFin + 1) + '/' + (actTotal || 1) };
+}
+
+/* ---------- 运行状态判定（纯函数，可单测）----------
+   之前把 queued/in_progress/success 之外的 run 一律当"失败"，还直接拼 conclusion。
+   GitHub 的 run 状态有 5 种（requested/pending/queued/in_progress/completed），
+   刚触发的头几秒常是 requested/pending，那时 conclusion 还是 null
+   —— 于是弹出「云端更新失败：null」，但云端根本没失败。 */
+function runState(run, runId, since){
+  if (!run) return 'busy';                                     // 还没排到，继续等
+  if (runId) return run.id === runId ? 'mine' : 'busy';         // 已锁定本次运行，等它变化
+  var st = run.status || '';
+  if (st === 'completed') {
+    if (since && new Date(run.created_at).getTime() < since) return 'busy';  // 是上一次的旧运行，忽略
+    return 'done';
+  }
+  if (st === 'requested' || st === 'pending' || st === 'queued' || st === 'waiting' || st === 'in_progress') {
+    if (since && new Date(run.created_at).getTime() < since) return 'busy';
+    return 'mine';
+  }
+  return 'busy';                                               // 状态未知也继续等，绝不误报失败
+}
 document.getElementById('refresh').onclick = function(){
   var btn = this;
   var used = quotaUsed();
@@ -426,6 +480,7 @@ document.getElementById('refresh').onclick = function(){
   var old = btn.textContent;
   btn.disabled = true; btn.textContent = '正在触发…';
   showBar(); setProgress(2, '已触发，正在排队…');
+  var since = Date.now() - 120000;   // 只认这个时刻之后创建的 run；留 2 分钟容差防本机与 GitHub 时钟偏差
 
   ghFetch(GH_API + '/workflows/' + GH_WF + '/dispatches', {
     method: 'POST', token: token,
@@ -436,73 +491,78 @@ document.getElementById('refresh').onclick = function(){
     btn.textContent = '云端抓取中…';
     var deadline = Date.now() + 30 * 60 * 1000;
     var POLL_MS = 30000;   // 每 30 秒向云端查询一次
-    function poll(){
-      if (Date.now() > deadline) { finish('抓取时间较长，请稍后手动刷新页面查看结果。'); return; }
-      ghFetch(GH_API + '/workflows/' + GH_WF + '/runs?per_page=1', { token: token })
+    var runId = null;      // 锁定本次触发的 run，避免误判到上一次的运行
+
+    function finish(msg){
+      btn.disabled = false; btn.textContent = old;
+      hideBar();
+      if (msg) alert(msg);
+    }
+    /** 查一次队列；返回 'mine'（本次运行在跑）/ 'done'（已出结果） */
+    function pollOnce(){
+      return ghFetch(GH_API + '/workflows/' + GH_WF + '/runs?per_page=1', { token: token })
         .then(function(r){ return r.json(); })
         .then(function(j){
           var run = j && j.workflow_runs && j.workflow_runs[0];
-          if (!run || run.status === 'queued') {
-            setProgress(3, '云端排队中…');
-            setTimeout(poll, POLL_MS);
-          } else if (run.status === 'in_progress') {
-            pollSteps(run.id, token, function(){ setTimeout(poll, POLL_MS); });
-          } else if (run.conclusion === 'success') {
-            setProgress(100, '更新完成，正在重新载入…');
-            btn.textContent = '更新完成';
-            setTimeout(function(){ location.reload(); }, 1800);
-          } else {
-            finish('云端更新失败：' + run.conclusion + '\n\n可打开 github.com/' + GH_OWNER + '/' + GH_REPO + '/actions 查看日志。');
+          var st = runState(run, runId, since);
+          if (st === 'busy') { setProgress(3, '云端排队中…'); return 'mine'; }
+          if (st === 'mine') {
+            runId = run.id;
+            return pollSteps(run.id, token).then(function(){ return 'mine'; });
           }
-        })
-        .catch(function(){ setTimeout(poll, POLL_MS); });
+          if (run.conclusion === 'success') return 'done';
+          throw new Error('云端更新失败：' + (run.conclusion || '未知原因'));
+        });
+    }
+    function poll(){
+      if (Date.now() > deadline) { finish('抓取时间较长，请稍后手动刷新页面查看结果。'); return; }
+      pollOnce().then(function(st){
+        if (st === 'done') {
+          btn.textContent = '更新完成';
+          setProgress(100, '更新完成，正在重新载入…');
+          var el = document.getElementById('refresh-progress');
+          if (el) el.className = 'on done';
+          setTimeout(function(){ location.reload(); }, 1800);
+          return;
+        }
+        setTimeout(poll, POLL_MS);
+      }).catch(function(e){
+        finish(e.message + '\n\n可打开 github.com/' + GH_OWNER + '/' + GH_REPO + '/actions 查看日志。');
+      });
     }
     setTimeout(poll, 5000);
   }).catch(function(e){
     var back = DAILY_LIMIT - quotaUsed();
     finish('无法触发云端更新：' + e.message + '\n\n本次不计入次数，今日剩余：' + back + ' 次');
   });
-
-  function finish(msg){
-    btn.disabled = false; btn.textContent = old;
-    hideBar();
-    if (msg) alert(msg);
-  }
 };
 
 /* ---------- 进度条 ---------- */
 var elProg = document.getElementById('refresh-progress');
 var elFill = document.getElementById('pfill');
 var elNote = document.getElementById('pnote');
-function showBar(){ if (elProg) elProg.className = 'on'; }
+function showBar(){
+  if (elProg) elProg.className = 'on';
+}
 function hideBar(){ if (elProg) elProg.className = ''; }
 function setProgress(p, note){
   p = Math.max(0, Math.min(100, Math.round(p)));
   if (elFill) elFill.style.width = p + '%';
   if (elNote) elNote.textContent = p + '%' + (note ? ' · ' + note : '');
 }
-/** 用已完成的步骤数推算进度（抓取占大头，用步骤内的耗时做插值） */
-function pollSteps(runId, token, done){
-  ghFetch(GH_API + '/runs/' + runId + '/jobs', { token: token })
+/** 取本次运行的全部 job，按加权步骤数推算进度（算法在 progressOfJobs，已单测） */
+function pollSteps(runId, token){
+  return ghFetch(GH_API + '/runs/' + runId + '/jobs', { token: token })
     .then(function(r){ return r.json(); })
     .then(function(j){
-      var steps = (j.jobs && j.jobs[0] && j.jobs[0].steps) || [];
-      var total = 0, finished = 0, active = null;
-      steps.forEach(function(s){ if (s.conclusion !== 'skipped') { total++; if (s.status === 'completed') finished++; else if (!active) active = s; } });
-      if (!total) { setProgress(5, '云端已启动…'); }
-      else {
-        var pct = finished / total * 100;
-        var name = active ? active.name : '处理中';
-        var note = name.replace(/（.*?）/g, '').replace(/^抓取双平台最新岗位$/, '抓取岗位中');
-        setProgress(pct, finished >= total ? '正在发布…' : note + ' ' + (finished + 1) + '/' + total);
-      }
+      var pr = progressOfJobs(j && j.jobs);
+      setProgress(pr.pct, pr.note);
     })
-    .catch(function(){})
-    .then(function(){ done && done(); });
+    .catch(function(){});   // 单次查询失败不改变进度，下一轮再试
 }
 
 /* ---------- 每日刷新次数（每日凌晨重置）---------- */
-var DAILY_LIMIT = 3;
+var DAILY_LIMIT = 5;
 var QUOTA_KEY = 'wjl-refresh-quota';
 function todayKey(){ var d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
 function quotaUsed(){
