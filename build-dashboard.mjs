@@ -51,7 +51,8 @@ function packJob(x) {
   return {
     id: x.id, t: x.title, c: x.company, s: x.salaryText || '',
     city: x.city || '', dist: x.district || '',
-    pub: (x.publishTime || '').slice(0, 10), exp: x.workYear || '', deg: x.degree || '',
+    pub: (x.publishTime || '').slice(0, 10), exp: x.workYear || '', expRaw: x.expLabelRaw || '',
+    expFrom: x.expSource || '', deg: x.degree || '',
     size: x.companySize || '', ind: x.industry || '', url: x.url || '',
     score: x.score, v: x.verdict,
     neg: (x.negatives || []).slice(0, 4), pen: x.penalties || [], bon: x.bonuses || [],

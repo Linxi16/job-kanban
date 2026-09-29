@@ -188,6 +188,15 @@ if (typeof nodes.tabs._onclick === 'function') {
 ok(/<b>发布时间<\/b>/.test(gridQC) && /<b>经验要求<\/b>/.test(gridQC) && /<b>接受应届生<\/b>/.test(gridQC), '结构化标签含 发布时间/经验要求/接受应届生');
 ok(/<b>学历要求<\/b>/.test(gridQC) && /<b>公司规模<\/b>/.test(gridQC) && /<b>工作模块<\/b>/.test(gridQC), '结构化标签含 学历要求/公司规模/工作模块');
 ok(/未提及/.test(gridQC), 'JD 未提及项显示「未提及」');
+// 信息索引原则：经验要求必须标明来源（JD 任职要求 vs 发布信息）
+const allJobs = P.platforms.flatMap((p) => p.jobs);
+ok(allJobs.every((j) => 'expRaw' in j && 'expFrom' in j), '每条岗位都带 expRaw / expFrom（经验来源）');
+const srcDist = {};
+for (const j of allJobs) srcDist[j.expFrom || '(空)'] = (srcDist[j.expFrom || '(空)'] || 0) + 1;
+ok(srcDist['JD任职要求'] > 0 && srcDist['发布信息'] > 0,
+  `经验来源两类都有（JD ${srcDist['JD任职要求'] || 0} 条 / 发布 ${srcDist['发布信息'] || 0} 条）`);
+ok(!allJobs.some((j) => j.expFrom && !j.expRaw), '标了来源的岗位必有经验原文');
+ok(/(发布信息)/.test(gridQC), '发布信息来源的经验在卡片上标注「（发布信息）」');
 const modNames = ['规划', '招聘', '培训', '薪酬', '绩效', '员关', '行政', 'BP'];
 const modHit = modNames.filter((m) => new RegExp('>' + m + '<').test(gridQC));
 ok(modHit.length >= 4, `工作模块标签使用固定 8 类名（本页命中 ${modHit.length} 类：${modHit.join('、')}）`);

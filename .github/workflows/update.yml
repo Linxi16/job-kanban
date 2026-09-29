@@ -146,6 +146,21 @@ jobs:
           DATA_DIR: data
         run: node export-report.mjs
 
+      # 回归用例：造数据 → 用引擎评分 → 校验判定。
+      # 放在构建看板之前，判定逻辑一旦被改坏就在这里失败，不会发布出去。
+      - name: 回归用例（应届生判定）
+        run: |
+          node test-fresh-bug.mjs --make
+          DATA_DIR=.tmp-fresh-test node score-engine.mjs
+          DATA_DIR=.tmp-fresh-real node score-engine.mjs
+          node test-fresh-bug.mjs --check
+
+      - name: 回归用例（硬过滤：实习 / 方向 / 地域 / 薪资）
+        run: |
+          node test-hard-filter.mjs --make
+          DATA_DIR=.tmp-hard-filter node score-engine.mjs
+          node test-hard-filter.mjs --check
+
       - name: 构建看板（本地完整版）
         run: node build-dashboard.mjs
 

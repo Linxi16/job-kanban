@@ -9,7 +9,7 @@
  *   【加分】知名企业、游戏日化行业、500人以上、双休、弹性打卡、餐补/交补/包吃/包住/下午茶、
  *          7k+、广州/佛山、多模块、HRBP或管培生、接受应届生、一周内新发布
  *   【减分】招聘专员
- *   【过滤】单休、20-99人、乙方公司、第三方派遣、经验要求>1年
+ *   【过滤】单休、20-99人、乙方公司、第三方派遣、经验下限≥2年、实习/非2026届
  *   【原则】以岗位描述（JD）内容为准；JD 未提及才参考岗位发布信息
  */
 import fs from 'fs';
@@ -51,7 +51,35 @@ const ROLE_PATTERNS = [
 const OFF_TARGET = /销售(代表|顾问|经理|专员|工程师)|电话销售|客服|市场(专员|经理)|运营(专员|经理)|财务|会计|出纳|java|前端|后端|测试|运维|算法|产品经理|设计师|美工|主播|编导|摄影|司机|保安|普工|操作工|仓管|跟单|采购|外贸|商务(专员|经理)|店长|导购|厨师|服务员|幼教|教师|助教|护士|药剂|保险(代理|顾问)|法务|合规|风控|审计|投资|理财|信贷|催收/i;
 
 // 目标岗位标题白名单（标题必须命中其一，否则视为方向不相关）
-const TARGET_TITLE = /hrbp|hr\s*bp|人力资源|人力专员|人事|行政|部门助理|业务助理|运营助理|总裁助理|总经理助理|总监助理|管培|储备干部|管理培训生|招聘(专员|助理|运营|主管|经理)|员工关系|薪酬|绩效|培训(专员|主管)|组织发展|企业文化|综合(专员|助理|管理)|文员|秘书|前台/i;
+// 注意：管培生只认"管培/储备干部/管理培训生"，不能写裸词"培训生"——
+//       否则"供应链管理培训生""销售管理培训生"会被当成方向命中（实测百事供应链管培 74 分进过看板）。
+// BP 分两类：HR 线（HRBP / 招聘BP / 组织BP / 人力BP）算目标方向；
+//            非 HR 线（财经BP/业务BP/财务BP/采购BP…）用负向预查排除。
+const TARGET_TITLE = /hrbp|hr\s*bp|人力资源|人力专员|人事|行政|部门助理|业务助理|运营助理|总裁助理|总经理助理|总监助理|管培|储备干部|管理培训生|招聘(专员|助理|运营|主管|经理)|员工关系|薪酬|绩效|培训(专员|主管)|组织发展|企业文化|综合(专员|助理|管理)|文员|秘书|前台|办公室助理|办公助理|办公文员|共享服务|ssc|内勤|总务|后勤/i;
+// 标题里的 BP：HR 线（HRBP/招聘BP/组织BP/人力BP）算目标方向；
+// 非 HR 线（财经BP/业务BP/财务BP/采购BP/销售BP…）不算。
+// 用两步判定而不是负向预查——"财务BP(总经理助理）"会被"总经理助理"命中而绕过预查。
+const BP_IN_TITLE = /(^|[^a-z])bp/i;
+const BP_NON_HR = /(财经|业务|财务|采购|销售|市场|产品|数据|技术|战略|投资|供应链|物流|渠道|电商|品牌|营销|客户|质量|生产|工程|研发|项目|法务|风控|审计|人力资本)\s*bp/i;
+const BP_HR_LINE = /(hr|招聘|人力|人事|行政|组织|员工|薪酬|绩效|培训|文化)[^，。；\n]{0,4}bp/i;
+/** 标题是否属于"BP 线"的目标方向（非 HR 线的 BP 要排除） */
+function bpTitleHit(title) {
+  const t = String(title || '');
+  if (!BP_IN_TITLE.test(t)) return false;
+  if (BP_NON_HR.test(t) && !BP_HR_LINE.test(t)) return false;
+  return true;
+}
+
+// 明确属于"别的职能"的方向词（出现在标题里且无 HR/行政 锚点 → 方向不符）
+const OFF_DIRECTION_WORD = /供应链|物流|仓储|关务|采购|外贸|跨境电商|销售|营销|市场|电商|新媒体|客服|财务|会计|出纳|审计|法务|风控|生产|制造|品质|工艺|设备|研发|软件|测试|运维|设计|美工|工程|安全|环境|商务|招商|门店|导购/i;
+// HR / 行政 方向的锚点词。注意不要放裸词或含裸字——"培训生"是管培标记不是职能锚点，
+// "运营培训生""技术培训生"都会因它被误判成 HR 方向。只保留本身就是 HR·行政 职能的词。
+const HR_ANCHOR_TITLE = /hrbp|hr\s*bp|人力资源|人力|人事|行政|员工关系|薪酬|绩效|培训(专员|主管|经理|岗)|招聘|组织发展|企业文化|文员|秘书|前台|共享服务|ssc|内勤|总务|后勤|办公室助理|办公助理|办公文员/i;
+
+// 任何"职能信息"词（HR/行政之外的职能也算）。用于区分两种完全不同的"方向不符"：
+//   · 标题含别的职能词（供应链/销售/客服…）→ 真的是方向不对
+//   · 标题一个职能词都没有（"上5休2/近地铁/五险一金"）→ 是无职能信息的纯引流标题
+const ANY_FUNCTION_WORD = /hrbp|hr\b|人力资源|人力|人事|行政|招聘|员工关系|薪酬|绩效|培训|组织|文化|文员|秘书|前台|助理|管培|储备|内勤|后勤|总务|管理|运营|销售|市场|客服|财务|会计|采购|供应链|物流|仓储|生产|车间|品质|质检|技术|研发|工程|设计|电商|新媒体|商务|招商|门店|导购|医生|护士|教师|助教|法务|风控|审计|司机|保安|保洁|仓管|跟单|报关|关务/i;
 
 // 工作模块口径（用户指定 8 类：规划 / 招聘 / 培训 / 薪酬 / 绩效 / 员关 / 行政 / BP）
 // 与看板标签同源：只依据 JD 正文的「实际工作内容」判定，
@@ -221,39 +249,183 @@ function extractWelfare(text) {
   return w;
 }
 
-/** 从 JD/岗位信息 抽取接受应届生 */
-function extractFreshFriendly(text) {
-  const t = text || '';
-  if (/接受应届|应届(生)?(优先|亦可|可投|欢迎)|欢迎应届|应届毕业生|无经验(可|亦)|不限经验|经验不限|无需经验|可培养|实习生转正|校招/i.test(t)) return true;
+/**
+ * 把 JD 切成「岗位职责 / 任职要求 / 其他」三段。
+ *
+ * 为什么要切：「校园招聘工作」「负责校招事宜」是**职责**（你要干的活），
+ * 不代表**招收对象**是应届生。实测「人事专员（培训方向）」因职责里出现"校招"
+ * 被误判为接受应届生（+5 分，还顺带免掉"经验>1年"的扣分），而它的任职要求
+ * 明写"3年以上相关工作经验"。切段后只在「任职要求」段判定。
+ */
+function splitJdSections(jd) {
+  const t = String(jd || '');
+  const dutyRe = /(岗位职责|工作职责|职位描述|工作内容|职责描述|主要职责|岗位说明|职位职责|工作范围|你将负责|你要做)/;
+  const reqRe = /(任职要求|任职资格|岗位要求|职位要求|人员要求|应聘要求|招聘要求|任职条件|资格要求|我们希望你|我们需要你|岗位条件|教育背景|任职需求)/;
+  // 要求段的终止标题：福利/待遇/作息/联系方式等一旦出现，就不再属于"任职要求"。
+  // （否则"福利待遇：应届毕业生到岗可报销路费"会被算进要求段，当成招收声明。）
+  const tailRe = /(福利待遇|薪酬福利|福利|待遇|薪资待遇|公司福利|员工福利|我们提供|我们能给|你将获得|联系方式|简历投递|投递方式|工作地点|工作时间|上班时间|面试地址|备注|加分项|其他说明)/;
+  const dm = t.match(dutyRe);
+  const rm = t.match(reqRe);
+  const di = dm ? dm.index : -1;
+  const ri = rm ? rm.index : -1;
+  if (ri < 0) return { duty: di >= 0 ? t.slice(di) : '', req: '', hasReqSection: false };
+  // 职责段从职责标题到要求标题（或到文末）
+  const duty = di >= 0 && di < ri ? t.slice(di, ri) : '';
+  // 要求段从要求标题开始，到下一个「职责标题 / 终止标题 / 文末」为止
+  let reqEnd = t.length;
+  const rest = t.slice(ri + 4);
+  const stops = [];
+  const nd = rest.match(dutyRe);
+  if (nd) stops.push(nd.index);
+  const nt = rest.match(tailRe);
+  if (nt) stops.push(nt.index);
+  if (stops.length) reqEnd = ri + 4 + Math.min(...stops);
+  return { duty, req: t.slice(ri, reqEnd), hasReqSection: true };
+}
+
+/**
+ * 抽取 JD 里的**最低**经验年限（准入下限）。
+ *   "1-3年" → 1（下限能覆盖，不算超范围）
+ *   "2-3年" / "3-5年" → 2 / 3（下限定在 2 以上，1～3年也投不了 → 超范围）
+ *   "2年以上" / "2年及以上" / "满2年" → 2
+ *   无年限表述 → null
+ */
+function extractMinYearsFromJd(text) {
+  const t = String(text || '');
+  const out = [];
+  let m;
+  const rangeRe = /(\d+)\s*[-~～—–至到]\s*(\d+)\s*年/g;   // 区间取下限
+  while ((m = rangeRe.exec(t))) out.push(Number(m[1]));
+  const aboveRe = /(\d+)\s*年(?:及|以)?(?:以上|起|经验)/g; // "2年以上" / "2年经验"
+  while ((m = aboveRe.exec(t))) out.push(Number(m[1]));
+  const fullRe = /(?:满|需|要求|至少)\s*(\d+)\s*年/g;
+  while ((m = fullRe.exec(t))) out.push(Number(m[1]));
+  return out.length ? Math.min(...out) : null;
+}
+
+/**
+ * 判定岗位是否真的「接受应届生」。
+ *
+ * 信息索引原则：**先看 JD，JD 未提及才看发布信息，冲突时以 JD 为准。**
+ * 判定优先级：
+ *   ① JD 明确"不招应届"            → 一票否决
+ *   ② JD 明确"接受应届/应届可投"    → 加分（"优秀应届毕业生可酌情考虑"也算）
+ *   ③ JD 任职要求段要求 ≥1 年经验   → 不加分（JD 优先，无视发布信息怎么写）
+ *   ④ JD 要求段没写年限，发布信息标"经验不限" → 加分（兜底）
+ *   ⑤ 都没提                        → 不加分（宁可漏加，不可错加）
+ *
+ * 关键教训：「校园招聘工作」「校招事宜」是**职责**（你要干的活），不是招收对象。
+ * 实测「人事专员（培训方向）」职责段写校招、任职要求写"3年以上经验"，
+ * 旧逻辑却给了"接受应届生 +5"，正好违反"以 JD 为准"。
+ */
+function detectFreshOk(jd, title, expLabelYears, log) {
+  const t = String(jd || '');
+  const { req, hasReqSection } = splitJdSections(t);
+  const titleStr = String(title || '');
+
+  // 否定：明确不招应届生 → 绝不算加分
+  const NEG_FRESH = /(不招|不收|谢绝|勿投|非|不要)[^。；;\n]{0,6}(应届|在校生)|应届生?[^。；;\n]{0,4}(勿投|免投|勿扰)/i;
+  if (NEG_FRESH.test(t)) {
+    if (log) log.push('应届加分被拦截：JD 明确不招应届生');
+    return false;
+  }
+
+  // ② JD 明确接受应届。范围遵守"以 JD 为准"的取数纪律：
+  //    ── 有任职要求段时，"应届毕业生"这类**宽口径**词只在要求段内算数。
+  //       否则福利条款里一句"应届毕业生到岗报到时可报销路费"（讲的是报销，不是招收对象）
+  //       会把整个岗位判成接受应届。
+  //    ── 全文/标题兜底只认**强招收措辞**（接受应届/欢迎应届/应届优先…），
+  //       这类词几乎不可能出现在福利文案里。
+  const BROAD = /接受应届|应届(?=[，。；、,;\s]|$)|应届[^。；;\n]{0,6}(优先|亦可|可投|欢迎|均可)|欢迎应届|优秀应届|招聘应届|应届毕业生|无经验(可|亦)/i;
+  const STRONG_ONLY = /接受应届|欢迎应届|应届[^。；;\n]{0,6}(优先|亦可|可投|均可)|优秀应届|招聘应届|无经验(可|亦)/i;
+  const scopeText = hasReqSection ? req : t;
+  let hit = scopeText.match(BROAD);
+  let where = hasReqSection ? '（任职要求段）' : '（JD 全文，无要求段）';
+  if (!hit) {
+    hit = t.match(STRONG_ONLY) || titleStr.match(STRONG_ONLY);
+    if (hit) where = '（JD 全文·强招收措辞）';
+  }
+  if (hit) {
+    if (log) log.push(`接受应届生：JD 明确"${hit[0]}"${where}`);
+    return true;
+  }
+
+  // ③ 经验年限：JD 任职要求段优先，JD 未提及才看发布信息
+  const expRes = resolveExpYears(t, expLabelYears);
+  if (expRes.years !== null && expRes.years >= 1) {
+    if (log) {
+      const detail = expRes.source === 'JD任职要求'
+        ? `JD任职要求=${expRes.years}${expRes.conflict ? `（发布信息=${expLabelYears}，以 JD 为准）` : ''}`
+        : `JD未提及，采信发布信息=${expLabelYears}`;
+      log.push(`应届加分被拦截：要求 ≥${expRes.years} 年经验（${detail}）`);
+    }
+    return false;
+  }
+
+  // ④ JD 没提年限 → 采信平台侧声明："经验不限"（expFromLabel 返回 -1）
+  if (expLabelYears === -1) {
+    if (log) log.push('接受应届生：JD 未提年限，采信发布信息"经验不限"');
+    return true;
+  }
+
+  if (log) log.push('未提及是否能接受应届生 → 不加分');
   return false;
 }
 
-/** 从 JD 抽取真实的经验要求（数字，年） */
-function extractExpYearsFromJd(text) {
-  const t = text || '';
-  let maxYears = null;
-  // "3年以上"、"2年及以上"、"1-3年"、"满2年"
-  const patterns = [
-    /(\d+)\s*年(?:及|以)?(?:以上|起|经验)/g,
-    /(\d+)\s*[-~至]\s*(\d+)\s*年/g,
-    /(?:满|需|要求)\s*(\d+)\s*年/g,
-  ];
-  for (const re of patterns) {
-    let m;
-    while ((m = re.exec(t))) {
-      const nums = m.slice(1).filter(Boolean).map(Number);
-      const v = Math.max(...nums);
-      if (maxYears === null || v > maxYears) maxYears = v;
-    }
+/**
+ * 统一的信息索引口径（用户指定）：
+ *   **先看 JD 内容，JD 未提及才参考发布信息；两者冲突时以 JD 为准。**
+ *
+ * 因此所有"JD 侧取值"都必须限定在**任职要求段**内。
+ * 职责段里的"N年"是别的意思（"维护3年以上老客户""制定五年规划"），
+ * 拿它当经验门槛就违背了"以 JD 为准"。
+ *
+ * scope='req'  → JD 任职要求段写了年限，采信它（JD 优先）
+ * scope='none' → JD 要求段没写年限（或整篇无要求段），交给发布信息兜底
+ */
+function jdYearsOf(jd) {
+  const t = String(jd || '');
+  const { req, hasReqSection } = splitJdSections(t);
+  if (!hasReqSection) return { years: null, scope: 'none' };
+  const y = extractMinYearsFromJd(req);
+  return { years: y, scope: y === null ? 'none' : 'req' };
+}
+
+/**
+ * 经验门槛（年）的唯一取数口径：
+ *   ① JD 任职要求段写明年限 → 用 JD 的（JD 优先，冲突时以 JD 为准）
+ *   ② JD 要求段没写        → 用发布信息标签
+ *   ③ 都没有                → null（不设门槛）
+ *
+ * 取的是**最低年限**（准入下限）："1-3年" → 1 年也能投。
+ */
+function resolveExpYears(jd, expLabelYears) {
+  const jdRes = jdYearsOf(jd);
+  if (jdRes.scope === 'req' && jdRes.years !== null) {
+    return { years: jdRes.years, source: 'JD任职要求', conflict: expLabelYears !== null && expLabelYears !== jdRes.years };
   }
-  return maxYears;
+  return { years: expLabelYears, source: expLabelYears === null ? null : '发布信息', conflict: false };
+}
+
+/**
+ * 是否超出校招应届生的经验范围（用户口径）：
+ *   · 1年以内、1～3年  → 不算超范围（下限 ≤1 能覆盖）
+ *   · 明确要求 2年以上（下限 ≥2，如"2~3年""3~5年""2年以上"）→ 超范围
+ *   · JD 提及"接受应届生 / 接受无经验" → 豁免
+ * expResult 来自 resolveExpYears()，其 years 已是"最低年限"。
+ */
+function expIsOutOfRange(freshOk, expResult) {
+  if (freshOk) return false;
+  return expResult.years !== null && expResult.years >= 2;
 }
 
 /** 岗位发布信息里的经验要求 → 年数（-1 表示不限，null 表示未知） */
 function expFromLabel(label) {
   const s = String(label || '');
   if (!s) return null;
-  if (/经验不限|不限|无要求|无经验/.test(s)) return -1;
+  // 注意：「经验不限」「不限经验」必须先于数字兜底判定
+  // （否则 "经验不限" 里的 "1年以下" 之类不会被抓，但 "1-3年" 会被误读）
+  if (/经验不限|不限经验|不限|无要求|无经验/.test(s)) return -1;
   if (/1年以下|一年以下|应届/.test(s)) return 0;
   if (/1-3年|1~3年|一至三年/.test(s)) return 3;
   if (/3-5年|3~5年|三至五年/.test(s)) return 5;
@@ -449,12 +621,21 @@ function verdictOf(score, penalties, negatives) {
   return '备选';
 }
 
+/** 标题是否属于 HR / 行政方向（唯一口径，硬过滤与方向加分共用）
+ *  规则：写了别的职能方向词（运营/产品/技术/供应链…）且没有 HR·行政锚点 → 不算；
+ *        否则看是否有 HR·行政锚点。 */
+function isHrAdminTitle(title) {
+  const t = String(title || '');
+  if (OFF_DIRECTION_WORD.test(t) && !HR_ANCHOR_TITLE.test(t)) return false;
+  return HR_ANCHOR_TITLE.test(t);
+}
+
 /** 是否属于「HRBP / HR管培生」方向 */
 function isBpOrMt(title, roleKey) {
   if (/招聘岗/.test(roleKey || '')) return false;
   const t = String(title || '');
-  // 非HR方向的管培生（供应链/销售/营销/生产/技术等）不算
-  if (/管培|管理培训生|储备干部|培训生/.test(t) && /(外贸|供应链|物流|销售|营销|市场|商务|生产|制造|技术|研发|工程|门店|零售|运营|质量|采购)/.test(t)) return false;
+  if (!isHrAdminTitle(t)) return false;               // 非 HR/行政方向：不加分，roleKey 也不能翻案
+  if (/业务伙伴|bp|管培|储备干部|培训生/i.test(t)) return true;
   if (/业务伙伴|BP|管培/.test(roleKey || '') && !/不相关|其它/.test(roleKey || '')) return true;
   return /(hr\s*bp|人力资源业务伙伴|业务伙伴|人[力事]管培|人[力事]资源管培|hr管培|管培生|管理培训生|储备干部|储备经理)/i.test(t);
 }
@@ -483,17 +664,25 @@ function scoreJob(job, platform, now) {
     negatives.push(`非广东省内（${jobCity}）`);
   }
 
-  // 1) 经验要求 > 1年
+  // 1) 经验要求（校招应届生门槛）
+  //    信息索引口径：先看 JD（只看任职要求段），JD 未提及才看发布信息；冲突时以 JD 为准。
+  //    门槛口径：只看**下限**。「1年以内 / 1～3年」放过（下限 ≤1 能覆盖）；
+  //    「2年以上 / 2~3年 / 3~5年」这类下限 ≥2 的过滤。
+  //    豁免：JD 明确接受应届生 / 接受无经验。
   const expLabelYears = expFromLabel(job.workYear);
-  const jdYears = extractExpYearsFromJd(jd);
-  const freshOk = extractFreshFriendly(jd) || extractFreshFriendly(title);
-  let effectiveExp = expLabelYears;
-  if (jdYears !== null && (expLabelYears === null || jdYears > expLabelYears)) effectiveExp = jdYears;
-  // JD 明确接受应届 → 视为不限
-  if (freshOk && (effectiveExp === null || effectiveExp >= 0)) effectiveExp = Math.min(effectiveExp ?? 0, 1);
-
-  const expIsOver1 = effectiveExp !== null && effectiveExp > 1;
-  if (expIsOver1) negatives.push(`经验要求>1年（${job.workYear || 'JD要求' + jdYears + '年'}）`);
+  const freshLog = [];
+  const freshOk = detectFreshOk(jd, title, expLabelYears, freshLog);
+  const expRes = resolveExpYears(jd, expLabelYears);
+  const expTooMuch = expIsOutOfRange(freshOk, expRes);
+  if (expTooMuch) {
+    // 展示口径同样以 JD 为准：JD 写了年限就标出来源，不显示发布信息的标签
+    const showY = expRes.source === 'JD任职要求' && expRes.years !== null
+      ? `${expRes.years}年·JD任职要求`
+      : (job.workYear || `${expRes.years}年`);
+    negatives.push(`经验要求超出校招范围（${showY}）`);
+  }
+  // 导出用：过滤判定所依据的经验年限（-1=不限，null=未标明）
+  const effectiveExp = expRes.years;
 
   // 2) 20-99人
   const scale = parseCompanyScale(job.companySize);
@@ -560,14 +749,32 @@ function scoreJob(job, platform, now) {
     negatives.push(`疑似销售岗（${company.replace(/有限公司.*/, '')}·保险/金融类）`);
   }
 
-  // 标题方向校验：标题未命中目标职能 → 不推荐
-  const titleHit = TARGET_TITLE.test(title);
+  // ---------- 标题方向校验 ----------
+  // 先算两个复用位：标题是否带"别的职能"方向词、是否带 HR/行政 锚点
+  const offDirWord = OFF_DIRECTION_WORD.test(title);
+  const hrAnchor = HR_ANCHOR_TITLE.test(title);
+
+  // 标题未命中目标职能 → 不推荐（BP 线另算：HR 线 BP 放过，财经/业务 BP 不算）
+  const titleHit = TARGET_TITLE.test(title) || bpTitleHit(title);
   if (!titleHit) {
-    negatives.push(`岗位方向不符（标题：${title.slice(0, 20)}）`);
+    // 分两种口径，避免把"无职能信息的引流标题"误说成"方向不符"（实测 125 条：
+    // "上5休2/近地铁/五险一金""300一天充电器打包长白班坐班"——它们根本没有岗位方向可言）
+    if (!ANY_FUNCTION_WORD.test(title)) {
+      negatives.push(`标题无职能信息（${title.slice(0, 20)}）`);
+    } else {
+      negatives.push(`岗位方向不符（标题：${title.slice(0, 20)}）`);
+    }
   }
-  // 管培生方向校验：外贸/销售/营销管培生不属于HR行政方向
-  if (/管培|储备干部/.test(title) && !/人力资源|人力|人事|行政|hrbp|hr/i.test(title)) {
+  // 管培生方向校验：外贸/销售/营销/供应链/运营管培生不属于HR行政方向
+  // （"培训生"曾漏在这条之外，被上面的 TARGET_TITLE 白名单放行）
+  // 笼统的「管培生」「储备干部」「海外管培生」不拦——用户求职方向本就含"管培生"。
+  if (/管培|储备干部|培训生/.test(title) && offDirWord && !hrAnchor) {
     negatives.push(`管培方向不符（${title.slice(0, 20)}）`);
+  }
+  // 方向词兜底：标题出现"别的职能"方向词、且没有任何 HR/行政 锚点 → 方向不符
+  // 例："百事集团2027年度供应链管理培训生""全能综合助理（兼新媒体与活动）"
+  if (offDirWord && !hrAnchor) {
+    negatives.push(`岗位方向不符（标题：${title.slice(0, 20)}）`);
   }
 
   // 客服/销售职能（非HR方向）
@@ -597,8 +804,11 @@ function scoreJob(job, platform, now) {
   if (sched.flexible === '是') bonuses.push({ k: '弹性打卡', v: 10 });
 
   // ---------- 加分③：餐补 / 交补 / 包吃 / 包住 / 下午茶（有档次，0～10）----------
-  let wel = extractWelfare(text);
-  if (!Object.keys(wel).length) wel = extractWelfare(textAll);   // JD 未提及福利 → 参考发布标签
+  // 信息索引口径：以 JD 为准；JD **未提及的单项**才参考发布标签（逐项兜底，
+  // 不是"JD 一项都没提才看发布信息"——那样 JD 只写餐补时会漏掉发布信息里的包住）。
+  const wel = extractWelfare(text);
+  const welFromLabel = extractWelfare(textAll);
+  for (const k of Object.keys(welFromLabel)) if (!wel[k]) wel[k] = true;
   const CARE = ['餐补/包吃', '交通补贴', '包住/房补', '下午茶'];
   const careHit = CARE.filter((k) => wel[k]);
   if (careHit.length) bonuses.push({ k: `关怀福利：${careHit.join('、')}`, v: Math.min(careHit.length * 4, 10) });
@@ -625,6 +835,7 @@ function scoreJob(job, platform, now) {
   if (bpHit) bonuses.push({ k: '岗位方向：HRBP / HR管培生', v: 5 });
 
   // ---------- 加分⑧：接受应届生（无档次，0 或 5）----------
+  // 说明：只在「任职要求」段判定，且若明确要求 ≥1 年经验则不加分（见 detectFreshOk）
   if (freshOk) bonuses.push({ k: '接受应届生', v: 5 });
 
   // ---------- 加分⑨：岗位一周内新发布（无档次，0 或 5）----------
@@ -653,15 +864,25 @@ function scoreJob(job, platform, now) {
 
   // ================================================================
 
-  // ---------- 实习岗 / 非2026届（明确面向在校生）→ 过滤 ----------
-  // 注意：标题看不出来但 JD 写明的也算（实测"互联企信·人事招聘专员"JD 开头即"不是应届生岗位！！实习岗位！！"）
-  const internTitle = /(实习生|intern|在校生|27届|28届|2027届|2028届|大[一二三四]在校|研[一二]在读)/i.test(title);
-  const internJd = /(不是应届生|非应届生|仅限在校|只招在校|在校生优先|实习生岗位|实习岗位|本岗位为实习|属实习岗|招聘实习生|2027届|2028届|27届|28届|2027年毕业|2028年毕业|大一|大二|大三在读|研一在读|研二在读|需实习\d|实习\d个月以上|要求实习)/.test(jd);
-  const canConvert = /(可转正|转正机会|表现优异.{0,6}转正|实习转正)/.test(jd);
+  // ---------- 实习岗 / 非2026届（面向在校生）→ 过滤 ----------
+  // 用户是 2026 届校招，实习岗与在读届别岗位一律不匹配。
+  //
+  // 判定分三档（越靠前越确定）：
+  //   ① 标题/学历标注**明写**实习或在读届别 → 一票过滤，任何"可转正"都不能翻案
+  //      （实测「珠海杰理·人力资源实习生」JD 写"可实习6个月及以上…可提供转正机会"，
+  //       旧逻辑用 canConvert 豁免了整个实习判定，83 分进了推荐档——转正机会改不了
+  //       "招收对象是在校生"这个事实。）
+  //   ② JD 明写实习岗或在读届别 → 过滤
+  //   ③ JD 要求实习时长（实习N个月/要求实习）→ 过滤（注：实习性质，与备注中"实习期3个月"不同）
+  // 唯一豁免：JD 明确同时面向 2026 届（正规校招，如"2026-2027届"）。
+  const internTitle = /实习生|实习岗|见习生|intern|在校生|27届|28届|2027届|2028届|大[一二三四]在校|研[一二]在读/i.test(title);
+  const internDegree = /(在校生|在读|27届|28届|2027届|2028届|大[一二三四]|研[一二]在读)/.test(String(job.degree || ''));
+  const internJd = /(不是应届生|非应届生|仅限在校|只招在校|在校生优先|实习生岗位|实习岗位|本岗位为实习|属实习岗|招聘实习生|在校生|在读学生|全日制在读|2027届|2028届|27届|28届|2027年毕业|2028年毕业|大一|大二|大三在读|研一在读|研二在读)/.test(jd);
+  const internDuration = /(实习\s*[0-9一二三四五六七八九十]+\s*个?月|需实习|要求实习|可实习|能实习|实习时间|实习期\s*[0-9])/.test(jd);
   // 豁免：JD 明确同时面向 2026 届（如"面向对象：2026-2027届"），说明是正规校招而非实习生岗
   const alsoGraduates2026 = /(2026\s*(?:[-–—~～]|至|到|、|\/)\s*2027\s*届|2026届及以后|2026届应届|2026届毕业生|2026年应届|应往届|往应届)/.test(jd);
-  if ((internTitle || internJd) && !canConvert && !alsoGraduates2026) {
-    negatives.push('实习/非应届届别岗位（明确面向在校生或非2026届）');
+  if ((internTitle || internDegree || internJd || internDuration) && !alsoGraduates2026) {
+    negatives.push('实习/非应届届别岗位（面向在校生或非2026届）');
   }
 
   // ---------- 招聘平台/信息科技类公司（多为RPO乙方）----------
@@ -678,23 +899,26 @@ function scoreJob(job, platform, now) {
   }
 
   // 计算：基准 50 + 加分（封顶 70，即总分上限 100）+ 减分
+  // 过滤项去重：不同规则可能推出同一句文案（如"岗位方向不符"同时被标题白名单和
+  // 方向词兜底命中），去重同时避免重复扣分。
+  const negativesUniq = [...new Set(negatives)];
   const bonusRaw = bonuses.reduce((s, b) => s + b.v, 0);
   const bonusCap = Math.min(bonusRaw, 70);
   if (bonusRaw > 70) bonuses.push({ k: `加分封顶（原始 ${bonusRaw} → 70）`, v: 70 - bonusRaw });
   score += bonusCap;
   for (const p of penalties) score += p.v;
   // 过滤项严重扣分，确保沉底
-  score -= negatives.length * 25;
+  score -= negativesUniq.length * 25;
 
-  // 判定（评分标准 v2：基准 50、上限 100；「推荐岗位」门槛 = 80 分）
-  const verdict = verdictOf(score, penalties, negatives);
+  // 判定（评分标准 v2：基准 50、上限 100；「推荐岗位」门槛 = 75 分）
+  const verdict = verdictOf(score, penalties, negativesUniq);
 
   return {
     ...job,
     platform,
     score: Math.max(0, Math.round(score)),
     verdict,
-    negatives,
+    negatives: negativesUniq,
     penalties,
     bonuses,
     schedule: sched,
@@ -707,7 +931,11 @@ function scoreJob(job, platform, now) {
     bonusRaw,
     bonusCap,
     freshOk,
+    freshNote: freshLog.join('；'),
     effectiveExp,
+    expSource: expRes.source,
+    expLabelYears,
+    expLabelRaw: String(job.workYear || '').trim(),   // 发布信息的经验原文（仅当 JD 未提及时才采信）
     daysAgo,
     roleKey: roleHit ? roleHit.key : (OFF_TARGET.test(title) ? '不相关' : '其它'),
     jobDescFull: jd,

@@ -30,9 +30,9 @@ for (const [expect, replacement] of INJECT) {
   else console.log(`❌ 漏掉「${expect}」！返回泄漏项：${JSON.stringify(leaks)}`);
 }
 
-/* ---- 2. 署名区注入 → 必须被抓到 ---- */
+/* ---- 2. 署名区（<title> / <h1>）注入 → 必须被抓到 ---- */
 total++;
-const chromeLeaks = findLeaks(ORIG.replace('<title>岗位看板 · 林小夕</title>', '<title>岗位看板 · 吴家良</title>'));
+const chromeLeaks = findLeaks(ORIG.replace('<h1 class="title-main">岗位看板</h1>', '<h1 class="title-main">岗位看板 · 吴家良</h1>'));
 if (chromeLeaks.some((l) => l.name === '姓名' && l.region === '署名区')) { pass++; console.log('✅ 抓到「署名区真名」'); }
 else console.log(`❌ 漏掉「署名区真名」！${JSON.stringify(chromeLeaks)}`);
 

@@ -21,7 +21,7 @@ for (const k of ['name', 'salaryReal', 'salary60', 'publishTime', 'companySize',
   console.log(`  ${String(r).padStart(3)}/${list.length}  ${k.padEnd(16)} ${s}`);
 }
 
-// 2) 经验要求分布（过滤项：>1年 直接不推荐）
+// 2) 经验要求分布（过滤项：下限≥2年 直接不推荐）
 console.log('\n--- 工作年限分布 ---');
 const exp = {};
 for (const x of list) { const k = x.workingExp || '(空)'; exp[k] = (exp[k] || 0) + 1; }

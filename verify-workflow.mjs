@@ -77,9 +77,18 @@ if (dl.length) {
 }
 const stepNames = (r.steps || []).map((s) => s.name || '');
 for (const want of ['合并分片', '评分与判定', '构建看板（本地完整版）', '校验看板（本地完整版）',
+                    '回归用例（应届生判定）', '回归用例（硬过滤：实习 / 方向 / 地域 / 薪资）',
                     '构建看板（云端发布版·脱敏）', '校验发布版（结构 + 脱敏）', '归档快照（只保留最近 10 份）',
                     '提交结果到仓库', '发布到 GitHub Pages']) {
   ok(stepNames.includes(want), `refresh 缺少步骤「${want}」`);
+}
+// 回归用例必须在"构建看板"之前：判定逻辑改坏了要在发布前失败，而不是发出去
+const idxCase = stepNames.indexOf('回归用例（应届生判定）');
+const idxBuild = stepNames.indexOf('构建看板（本地完整版）');
+ok(idxCase > -1 && idxBuild > -1 && idxCase < idxBuild, '回归用例应排在构建看板之前');
+for (const nm of ['回归用例（应届生判定）', '回归用例（硬过滤：实习 / 方向 / 地域 / 薪资）']) {
+  const s = (r.steps || []).find((x) => x.name === nm);
+  ok(s && /--make/.test(s.run) && /--check/.test(s.run), `${nm}: 要跑 --make 与 --check`);
 }
 const mergeStep = (r.steps || []).find((s) => s.name === '合并分片');
 ok(mergeStep && String(mergeStep.run).includes('cloud/merge-shards.mjs'), '合并分片应调用 cloud/merge-shards.mjs');

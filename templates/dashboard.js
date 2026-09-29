@@ -278,10 +278,15 @@ function jobCard(j){
 
   // 发布时间
   var pub = j.pub ? (j.pub + (typeof j.days === 'number' ? '（' + j.days + '天前）' : '')) : '';
-  // 经验要求
-  var exp = j.exp || '';
-  // 是否接受应届生
-  var fresh = j.fresh ? '接受应届生' : (/不限|无经验/.test(exp) ? '经验不限' : (/1-3年|1年以上|3-5年|5-10年|10年以上/.test(exp) ? '需工作经验' : ''));
+  // 经验要求：严格按"信息索引原则"显示——JD 任职要求段写了就显示 JD 的，
+  // JD 未提及才显示发布信息标签，并标明来源（用户要求：JD 未提及才参考发布信息）。
+  var expRaw = esc(j.expRaw || j.exp || '');
+  var exp = j.expFrom === 'JD任职要求' ? expRaw
+          : (expRaw ? expRaw + '（发布信息）' : '未标明');
+  // 是否接受应届生：引擎按 JD 判定，未判定时退回发布信息的"不限/无经验"
+  var fresh = j.fresh ? '接受应届生'
+            : (/不限|无需经验|无经验|不要求经验/.test(expRaw) ? '经验不限'
+            : (/1-3年|1年以上|3-5年|5-10年|10年以上|1年以下|应届/.test(expRaw) ? '需工作经验' : ''));
   if (!fresh && j.grad && /接受2026届|2026\/2027届均可/.test(j.grad)) fresh = '接受2026届毕业生';
   // 学历
   var deg = j.deg || '';
@@ -518,7 +523,7 @@ function stamp(){
   var ds = d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate();
   elStamp.textContent = '!VERSION! ● ' + ds + ' ——林小夕';
 }
-document.title = '岗位看板 !VERSION! · 智联 + 前程';
+document.title = '岗位看板';
 
 elSort.value = state.sort;
 render(); stamp();
