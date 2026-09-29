@@ -13,6 +13,7 @@ export const PUSH = [
   '.gitignore',
   '.github/workflows/update.yml',
   'README.md',
+  'tools/README.md',   // 已删除脚本的留痕（避免以后翻 Git 历史猜用途）
 
   // 引擎与构建
   'score-engine.mjs',
