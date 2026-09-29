@@ -23846,7 +23846,7 @@
     "v": -15
    },
    {
-    "k": "发布较久（249天前）",
+    "k": "发布较久（250天前）",
     "v": -3
    }
   ],
@@ -23913,7 +23913,7 @@
   "expLabelRaw": "3-5年",
   "salaryMinNum": 15000,
   "salaryMaxNum": 25000,
-  "daysAgo": 249,
+  "daysAgo": 250,
   "roleKey": "HRBP",
   "jobDescFull": "岗位职责：\n1．作为拼多多-多多买菜业务部门的合作伙伴，能根据公司业务发展要求，深入参与组织框架搭建，快速满足业务人员招聘需求，补充业务发展所需人才；\n2．关注业务部门人员配置合理性，协助进行业务组织结构优化和组织文化建设，为业务部门提供强有力的人员供给及梯队搭建支持；\n3．通过人才盘点、人才发展等方法，关注关键人才的招聘、培养、发展和提升，包括但不限于关键岗位人才的招募、识别、发展、管理和留任；\n4．统筹完成薪酬策略、绩效管理等人力资源其他模块的工作；\n5．负责人力资源各项制度在部门的落地执行，并进行有效反馈和改进。\n岗位要求：\n1．本科及以上学历，具备3年及以上人力资源工作经验，在招聘方面有实操经验，有快速落地能力；\n2．具备互联网行业或大型仓储、物流行业工作经验优先，接受base物流园区的工作场景；\n3．出色的多任务、多角色平衡能力，抗压性强，有好胜心和开创的热情。",
   "dupCount": 1
@@ -43126,6 +43126,85 @@
   "dupCount": 1
  },
  {
+  "id": "CCL1528593890J40878212401",
+  "title": "人力资源专员/助理",
+  "company": "佛山瀚迪国际企业管理有限公司",
+  "salaryText": "4000-6000元",
+  "city": "佛山",
+  "district": "",
+  "publishTime": "2026-09-09 13:32:09",
+  "workYear": "经验不限",
+  "degree": "学历不限",
+  "companySize": "20人以下",
+  "industry": "文化艺术/娱乐",
+  "url": "http://www.zhaopin.com/jobdetail/CCL1528593890J40878212401.htm",
+  "tags": [
+   "招聘",
+   "人事培训"
+  ],
+  "welfareFromPost": [],
+  "jd": "职位描述： 1、主要负责人才招聘及团队配置 2、协助其他板块工作的完成 岗位要求： 1、1年以上相关工作经历 2、有过相同岗位工作经验 3、大学专科以上学历",
+  "hasDetail": true,
+  "cityResolved": "佛山",
+  "platform": "智联招聘",
+  "score": 24,
+  "verdict": "不推荐",
+  "negatives": [
+   "公司规模偏小（20人以下）"
+  ],
+  "penalties": [
+   {
+    "k": "薪资偏低（4000-6000元）",
+    "v": -6
+   }
+  ],
+  "bonuses": [
+   {
+    "k": "地点：佛山",
+    "v": 5
+   }
+  ],
+  "schedule": {
+   "rest": "",
+   "hours": "",
+   "flexible": "",
+   "note": ""
+  },
+  "welfare": [
+   "培训晋升"
+  ],
+  "welfareCare": [],
+  "modules": [
+   "招聘"
+  ],
+  "moduleWeights": {
+   "规划": 0,
+   "招聘": 100,
+   "培训": 0,
+   "薪酬": 0,
+   "绩效": 0,
+   "员关": 0,
+   "行政": 0,
+   "BP": 0
+  },
+  "bp": false,
+  "scoreBase": 50,
+  "bonusRaw": 5,
+  "bonusCap": 5,
+  "freshOk": false,
+  "freshNote": "应届加分被拦截：要求 ≥1 年经验（JD任职要求=1（发布信息=-1，以 JD 为准））",
+  "effectiveExp": 1,
+  "expSource": "JD任职要求",
+  "expLabelYears": -1,
+  "expLabelRaw": "经验不限",
+  "salaryMinNum": 4000,
+  "salaryMaxNum": 6000,
+  "daysAgo": 20,
+  "roleKey": "人力资源专员",
+  "jobDescFull": "职位描述： 1、主要负责人才招聘及团队配置 2、协助其他板块工作的完成 岗位要求： 1、1年以上相关工作经历 2、有过相同岗位工作经验 3、大学专科以上学历",
+  "dupCount": 1
+ },
+ {
   "id": "CC613817420J40758066209",
   "title": "总经理助理",
   "company": "广东圣大电子有限公司",
@@ -43291,85 +43370,6 @@
   "daysAgo": 3,
   "roleKey": "人力资源专员",
   "jobDescFull": "职位描述：\n1、主要负责人才招聘及团队配置\n2、协助其他板块工作的完成\n岗位要求： \n1、1年以上相关工作经历\n2、有过相同岗位工作经验\n3、大学专科以上学历",
-  "dupCount": 1
- },
- {
-  "id": "CCL1528593890J40878212401",
-  "title": "人力资源专员/助理",
-  "company": "佛山瀚迪国际企业管理有限公司",
-  "salaryText": "4000-6000元",
-  "city": "佛山",
-  "district": "",
-  "publishTime": "2026-09-09 13:32:09",
-  "workYear": "经验不限",
-  "degree": "学历不限",
-  "companySize": "20人以下",
-  "industry": "文化艺术/娱乐",
-  "url": "http://www.zhaopin.com/jobdetail/CCL1528593890J40878212401.htm",
-  "tags": [
-   "招聘",
-   "人事培训"
-  ],
-  "welfareFromPost": [],
-  "jd": "职位描述： 1、主要负责人才招聘及团队配置 2、协助其他板块工作的完成 岗位要求： 1、1年以上相关工作经历 2、有过相同岗位工作经验 3、大学专科以上学历",
-  "hasDetail": true,
-  "cityResolved": "佛山",
-  "platform": "智联招聘",
-  "score": 24,
-  "verdict": "不推荐",
-  "negatives": [
-   "公司规模偏小（20人以下）"
-  ],
-  "penalties": [
-   {
-    "k": "薪资偏低（4000-6000元）",
-    "v": -6
-   }
-  ],
-  "bonuses": [
-   {
-    "k": "地点：佛山",
-    "v": 5
-   }
-  ],
-  "schedule": {
-   "rest": "",
-   "hours": "",
-   "flexible": "",
-   "note": ""
-  },
-  "welfare": [
-   "培训晋升"
-  ],
-  "welfareCare": [],
-  "modules": [
-   "招聘"
-  ],
-  "moduleWeights": {
-   "规划": 0,
-   "招聘": 100,
-   "培训": 0,
-   "薪酬": 0,
-   "绩效": 0,
-   "员关": 0,
-   "行政": 0,
-   "BP": 0
-  },
-  "bp": false,
-  "scoreBase": 50,
-  "bonusRaw": 5,
-  "bonusCap": 5,
-  "freshOk": false,
-  "freshNote": "应届加分被拦截：要求 ≥1 年经验（JD任职要求=1（发布信息=-1，以 JD 为准））",
-  "effectiveExp": 1,
-  "expSource": "JD任职要求",
-  "expLabelYears": -1,
-  "expLabelRaw": "经验不限",
-  "salaryMinNum": 4000,
-  "salaryMaxNum": 6000,
-  "daysAgo": 20,
-  "roleKey": "人力资源专员",
-  "jobDescFull": "职位描述： 1、主要负责人才招聘及团队配置 2、协助其他板块工作的完成 岗位要求： 1、1年以上相关工作经历 2、有过相同岗位工作经验 3、大学专科以上学历",
   "dupCount": 1
  },
  {
