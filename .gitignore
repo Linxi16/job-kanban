@@ -7,9 +7,12 @@
 probe-*.mjs
 .tmp-*.mjs
 
-# 已被 fetch-all.mjs 取代的旧爬虫
+# 已被 fetch-all.mjs 取代的旧爬虫（文件已删除，规则保留以防误加回来）
 51job-spider.mjs
 zhilian-spider.mjs
+
+# 推送清单产物（cloud/gh-manifest.mjs 每次生成，属本地中间件）
+.tmp-push-manifest.json
 
 # 本地文件备份
 *.bak

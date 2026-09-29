@@ -80,9 +80,12 @@ const stepNames = (r.steps || []).map((s) => s.name || '');
 const CASE_STEPS = ['回归用例（应届生判定）', '回归用例（硬过滤：实习 / 方向 / 地域 / 薪资 / 年薪·日薪·时薪换算）'];
 // 纯函数单测步骤：直接 node 跑，不需要 --make/--check 两阶段
 const UNIT_STEPS = ['回归用例（经验年限解析）'];
+// 数据审计：读 scored-*.json 做断言（必须非零退出才有意义）
+const AUDIT_STEPS = ['数据审计（地域 / 过滤项）'];
 for (const want of ['合并分片', '评分与判定', '构建看板（本地完整版）', '校验看板（本地完整版）',
-                    ...CASE_STEPS, ...UNIT_STEPS,
-                    '构建看板（云端发布版·脱敏）', '校验发布版（结构 + 脱敏）', '归档快照（只保留最近 10 份）',
+                    '校验口径一致性（看板 vs 引擎的模块判定）',
+                    ...CASE_STEPS, ...UNIT_STEPS, ...AUDIT_STEPS,
+                    '构建看板（云端发布版·脱敏）', '校验发布版（结构 + 脱敏）', '归档快照（只保留最近 3 份）',
                     '提交结果到仓库', '发布到 GitHub Pages']) {
   ok(stepNames.includes(want), `refresh 缺少步骤「${want}」`);
 }
@@ -90,6 +93,11 @@ for (const want of ['合并分片', '评分与判定', '构建看板（本地完
 const idxCase = stepNames.indexOf(CASE_STEPS[0]);
 const idxBuild = stepNames.indexOf('构建看板（本地完整版）');
 ok(idxCase > -1 && idxBuild > -1 && idxCase < idxBuild, '回归用例应排在构建看板之前');
+// verify-parity 依赖看板 HTML，必须在「构建看板（本地完整版）」之后
+{
+  const p = stepNames.indexOf('校验口径一致性（看板 vs 引擎的模块判定）');
+  ok(p > -1 && p > idxBuild, '校验口径一致性应排在构建看板之后（它要读看板 HTML）');
+}
 for (const nm of CASE_STEPS) {
   const s = (r.steps || []).find((x) => x.name === nm);
   ok(s && /--make/.test(s.run) && /--check/.test(s.run), `${nm}: 要跑 --make 与 --check`);
@@ -98,6 +106,14 @@ for (const nm of UNIT_STEPS) {
   const s = (r.steps || []).find((x) => x.name === nm);
   ok(s && /node\s+test-[\w-]+\.mjs/.test(s.run), `${nm}: 应直接跑 node test-*.mjs`);
   ok(s && stepNames.indexOf(nm) < idxBuild, `${nm}: 应排在构建看板之前`);
+}
+for (const nm of AUDIT_STEPS) {
+  const s = (r.steps || []).find((x) => x.name === nm);
+  ok(s && /node\s+audit-[\w-]+\.mjs/.test(s.run), `${nm}: 应直接跑 node audit-*.mjs`);
+  ok(s && stepNames.indexOf(nm) < idxBuild, `${nm}: 应排在构建看板之前`);
+  // 两个审计脚本都必须被跑到，且都要能被推送（否则云端缺文件）
+  const called = [...String(s?.run || '').matchAll(/node\s+(audit-[\w-]+\.mjs)/g)].map((m) => m[1]);
+  ok(called.length === 2, `${nm}: 应同时跑 audit-cities 与 audit-negatives，实际 ${called}`);
 }
 const mergeStep = (r.steps || []).find((s) => s.name === '合并分片');
 ok(mergeStep && String(mergeStep.run).includes('cloud/merge-shards.mjs'), '合并分片应调用 cloud/merge-shards.mjs');
@@ -127,17 +143,15 @@ const missingLocal = usedScripts.filter((p) => !fs.existsSync(p));
 ok(missingLocal.length === 0, `工作流调用的脚本本地不存在：${missingLocal}`);
 
 let manifest = [];
-if (fs.existsSync('.tmp-manifest.mjs')) {
-  const src = fs.readFileSync('.tmp-manifest.mjs', 'utf8');
-  const arr = src.match(/const PUSH = \[([\s\S]*?)\];/);
-  if (arr) {
-    // 必须逐行剥掉注释再取条目：否则被注释掉的 'x.mjs' 仍会被当成"清单里有"
-    // （字符串 includes 判定会被注释文本骗过，守卫就形同虚设）
-    const body = arr[1].split('\n').map((l) => l.replace(/\/\/.*$/, '')).join('\n');
-    manifest = [...body.matchAll(/'([^']+)'/g)].map((m) => m[1]);
-  }
+try {
+  // 直接 import 单一事实来源，绝不再用正则复制解析清单。
+  // （曾用正则解析 .tmp-manifest.mjs，被一行注释文本 // 'test-exp-parse.mjs', 骗过，
+  //   守卫显示全绿而云端实际 file-not-found —— 这正是本守卫要防的那类失败。）
+  ({ PUSH: manifest } = await import('./cloud/gh-push-list.mjs'));
+} catch (e) {
+  ok(false, `无法 import cloud/gh-push-list.mjs：${e.message}`);
 }
-ok(manifest.length > 0, '应能从 .tmp-manifest.mjs 解析出推送清单');
+ok(Array.isArray(manifest) && manifest.length > 0, '应能从 cloud/gh-push-list.mjs 取到推送清单');
 const notPushed = usedScripts.filter((p) => !manifest.includes(p));
 ok(notPushed.length === 0, `工作流调用但不在推送清单里的脚本（云端会 file-not-found）：${notPushed}`);
 // 清单里的条目必须本地都在（否则 gh-upload 会因缺文件失败）
@@ -146,13 +160,29 @@ ok(manifestMissing.length === 0, `推送清单里本地缺失的文件：${manif
 // 垃圾文件不得进清单（云端 git add -A 会连带提交）
 const junk = manifest.filter((p) => /^\.tmp-|^probe-|spider\.mjs$|\.bak$|^归档\//.test(p));
 ok(junk.length === 0, `推送清单里不应含临时/垃圾文件：${junk}`);
+// 清单里不得出现已被删除的废弃文件（本地已清场，别再推回去）
+const gone = ['check-jd-coverage.mjs', 'zhilian-spider.mjs', '51job-spider.mjs', 'data/zhilian-detail.json'];
+const resurrected = gone.filter((p) => manifest.includes(p));
+ok(resurrected.length === 0, `清单里不应包含已废弃文件：${resurrected}`);
 // .gitignore 必须存在且覆盖测试夹具目录（否则云端每次都会重推 .tmp-*）
 ok(fs.existsSync('.gitignore'), '.gitignore 必须存在（云端 git add -A 依赖它排除临时产物）');
 if (fs.existsSync('.gitignore')) {
   const gi = fs.readFileSync('.gitignore', 'utf8');
   ok(/^\.tmp-\*\/?$/m.test(gi), '.gitignore 需忽略 .tmp-*（回归夹具目录）');
   ok(/^归档\/$/m.test(gi), '.gitignore 需忽略 归档/');
-  ok(/spider\.mjs/m.test(gi), '.gitignore 需忽略旧爬虫脚本');
+  ok(/zhilian-detail\.json/m.test(gi), '.gitignore 需忽略已废弃的 data/zhilian-detail.json');
+}
+
+// 归档保留份数：用户口径是「只保留最近 3 份」。
+// tail -n +4 保留前 3 行（= 最新 3 份），-n +11 才是 10 份 —— 改错就是悄悄多留一堆快照。
+const arch = (r.steps || []).find((s) => /^归档快照/.test(s.name || ''));
+ok(!!arch, '应有归档快照步骤');
+if (arch) {
+  // 只统计真正的管道命令（tail ... | xargs ... rm），避免把解释性注释里的 tail -n +4 也算进来
+  const n = [...String(arch.run).matchAll(/tail\s+-n\s+\+(\d+)\s*\|\s*xargs/g)].map((m) => Number(m[1]));
+  ok(n.length === 2, `归档步骤应对 html 与 json 各做一次裁剪，实际 ${n.length} 次`);
+  ok(n.every((x) => x === 4), `归档应保留最近 3 份（tail -n +4），实际 ${n.map((x) => `+${x}（保留 ${x - 1} 份）`)}`);
+  ok(/最近\s*3\s*份/.test(arch.name), `归档步骤名应与实际保留份数一致，实际「${arch.name}」`);
 }
 
 console.log(`\n工作流校验：✅ ${pass} 项通过${fail ? `，❌ ${fail} 项失败` : ''}`);

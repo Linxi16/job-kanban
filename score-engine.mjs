@@ -785,6 +785,11 @@ function scoreJob(job, platform, now) {
     if (titleGd) cityResolved = gdIn(titleGd);
     else negatives.push(`非广东省内（${jobCity}）`);
   }
+  // 把解析结果落回 job，随评分行一起输出：
+  //   job.city  = 平台原始值（前程可能是总部所在地，如"北京·丰台区"）
+  //   cityResolved = 引擎最终采信的工作地（可能来自标题括号）
+  // 输出它是为了让 audit-live.mjs 能核对"推荐档是否真在广东"，而不是自己再模糊匹配一遍。
+  job.cityResolved = cityResolved;
 
   // 1) 经验要求（校招应届生门槛）
   //    信息索引口径：先看 JD（只看任职要求段），JD 未提及才看发布信息；冲突时以 JD 为准。

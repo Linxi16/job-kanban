@@ -148,6 +148,8 @@ jobs:
 
       # 回归用例：造数据 → 用引擎评分 → 校验判定。
       # 放在构建看板之前，判定逻辑一旦被改坏就在这里失败，不会发布出去。
+      # 说明：这里故意拆成多步而不是跑 test-all.mjs —— 云端哪一步挂了在 Actions 页面一眼可见。
+      #       test-all.mjs 是同一批用例的本地一键版，两边用例集由 verify-workflow.mjs 保持一致。
       - name: 回归用例（应届生判定）
         run: |
           node test-fresh-bug.mjs --make
@@ -165,11 +167,23 @@ jobs:
       - name: 回归用例（经验年限解析）
         run: node test-exp-parse.mjs
 
+      # 数据审计：读上一步产出的 scored-*.json，核对地域归并与过滤项一致性。
+      # 这些脚本会断言并返回非零码（早先只打印、永远 exit 0，是假绿）。
+      - name: 数据审计（地域 / 过滤项）
+        run: |
+          node audit-cities.mjs
+          node audit-negatives.mjs
+
       - name: 构建看板（本地完整版）
         run: node build-dashboard.mjs
 
       - name: 校验看板（本地完整版）
         run: node verify-dashboard.mjs
+
+      # 口径一致性：看板内嵌的模块判定逻辑 vs 引擎的 moduleHay + MODULES。
+      # 两处各有一份实现，改一处忘另一处就会出现"评分用的模块"和"展示的模块"不一致。
+      - name: 校验口径一致性（看板 vs 引擎的模块判定）
+        run: node verify-parity.mjs
 
       - name: 构建看板（云端发布版·脱敏）
         env:
@@ -182,14 +196,15 @@ jobs:
       - name: 校验发布版（结构 + 脱敏）
         run: node verify-dist.mjs
 
-      - name: 归档快照（只保留最近 10 份）
+      - name: 归档快照（只保留最近 3 份）
         run: |
           mkdir -p 归档
           D=$(date +%Y%m%d-%H%M)
           cp dist/看板.html "归档/看板-$D.html" || true
           cp dist/看板数据.json "归档/看板数据-$D.json" || true
-          ls -1t 归档/看板-*.html 2>/dev/null | tail -n +11 | xargs -r rm -f
-          ls -1t 归档/看板数据-*.json 2>/dev/null | tail -n +11 | xargs -r rm -f
+          # tail -n +4 = 从第 4 行起删除，即保留最新 3 份
+          ls -1t 归档/看板-*.html 2>/dev/null | tail -n +4 | xargs -r rm -f
+          ls -1t 归档/看板数据-*.json 2>/dev/null | tail -n +4 | xargs -r rm -f
           echo "归档文件数: $(ls -1 归档 | wc -l)"
 
       - name: 提交结果到仓库
