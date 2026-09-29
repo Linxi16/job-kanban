@@ -40,7 +40,7 @@ const ZL_CITY_CODES = { 广州: 763, 深圳: 765, 佛山: 766, 东莞: 768, 珠�
 const ZL_KWS = (process.env.ZL_KWS || 'HRBP,人事专员,行政专员,人力资源专员').split(',').map((s) => s.trim()).filter(Boolean);
 const ZL_CITIES = (process.env.ZL_CITIES || '广州,佛山,深圳,东莞').split(',').map((s) => s.trim()).filter(Boolean);
 const ZL_PAGES = Math.min(Number(process.env.ZL_PAGES || 2), 5);
-const ZL_CAP = Number(process.env.ZL_CAP || 500);
+const ZL_CAP = Number(process.env.ZL_CAP || 2000);
 
 function extractInitialState(html) {
   const i = html.indexOf('__INITIAL_STATE__');
@@ -107,7 +107,9 @@ async function fetchZhilian() {
   }
   fs.writeFileSync(path.join(DATA, 'zhilian-list.json'), JSON.stringify(all, null, 1), 'utf8');
   const mins = ((Date.now() - t0) / 60000).toFixed(1);
+  const hitCapZ = all.length >= ZL_CAP;
   console.log(`智联完成：${all.length} 条唯一岗位 | ${reqs} 次请求（失败 ${fails}） | ${mins} 分钟`);
+  if (hitCapZ) console.log(`  ⚠️ 已达到上限 ${ZL_CAP} 条，提前结束抓取（本次未跑完全部组合）`);
   return { count: all.length, reqs, fails, minutes: Number(mins) };
 }
 
@@ -115,11 +117,16 @@ async function fetchZhilian() {
 const QC_SIGN_KEY = 'abfc8f9dcf8c3f3d8aa294ac5f2cf2cc7767e5592590f39c3f503271dd68562b';
 const QC_HOME = 'https://cupid.51job.com';
 const QC_API = '/open/noauth/jobs/fresh-job-list';
-const QC_CITY = { 广州: '030200', 佛山: '030600', 深圳: '040000', 东莞: '030800' };
+/* 前程无忧 jobArea 城市码（2026-09 实测验证：返回岗位城市与代码一致） */
+const QC_CITY = {
+  广州: '030200', 佛山: '030600', 深圳: '040000', 东莞: '030800',
+  珠海: '030500', 中山: '030700', 惠州: '030300', 江门: '031500',
+  汕头: '030400', 韶关: '031400', 湛江: '031700', 肇庆: '031800',
+};
 const QC_KWS = (process.env.QC_KWS || 'HRBP,人事专员,行政专员,人力资源专员').split(',').map((s) => s.trim()).filter(Boolean);
 const QC_CITIES = (process.env.QC_CITIES || '广州,佛山').split(',').map((s) => s.trim()).filter(Boolean);
 const QC_PAGES = Number(process.env.QC_PAGES || 2);
-const QC_CAP = Number(process.env.QC_CAP || 500);
+const QC_CAP = Number(process.env.QC_CAP || 2000);
 const QC_PAGE_SIZE = 30;
 
 const qcSign = (t) => crypto.createHmac('sha256', QC_SIGN_KEY).update(t).digest('hex');
@@ -178,6 +185,14 @@ async function fetch51job() {
   let reqs = 0, fails = 0;
   const t0 = Date.now();
   console.log(`\n===== 前程无忧：${QC_KWS.length} 关键词 × ${QC_CITIES.length} 城市 × ${QC_PAGES} 页 =====`);
+  // 城市名写错会导致整块数据被静默跳过，这里开跑前就硬性拦下来
+  const badCities = QC_CITIES.filter((c) => !QC_CITY[c]);
+  if (badCities.length) {
+    const msg = `未知城市：${badCities.join('、')}｜可用：${Object.keys(QC_CITY).join('、')}`;
+    console.log('  ❌ ' + msg);
+    if (process.env.STRICT_CITY === '1') throw new Error(msg);
+  }
+  console.log(`  城市：${QC_CITIES.map((c) => `${c}(${QC_CITY[c] || '?'})`).join(' ')}　预计请求 ${QC_KWS.length * QC_CITIES.length * QC_PAGES} 次`);
 
   outer:
   for (let p = 1; p <= QC_PAGES; p++) {
@@ -208,9 +223,10 @@ async function fetch51job() {
       }
     }
   }
-  fs.writeFileSync(path.join(DATA, '51job-list.json'), JSON.stringify(all, null, 1), 'utf8');
-  const mins = ((Date.now() - t0) / 60000).toFixed(1);
+  fs.writeFileSync(path.join(DATA, '51job-list.json'), JSON.stringify(all, null, 1), 'utf8');  const mins = ((Date.now() - t0) / 60000).toFixed(1);
+  const hitCapQ = all.length >= QC_CAP;
   console.log(`前程完成：${all.length} 条唯一岗位 | ${reqs} 次请求（失败 ${fails}） | ${mins} 分钟`);
+  if (hitCapQ) console.log(`  ⚠️ 已达到上限 ${QC_CAP} 条，提前结束抓取（本次未跑完全部组合）`);
   return { count: all.length, reqs, fails, minutes: Number(mins) };
 }
 
@@ -222,6 +238,26 @@ const doZhilian = !ONLY || ONLY === 'zhilian' || ONLY === '智联';
 const do51job = !ONLY || ONLY === '51job' || ONLY === '前程';
 const report = { generatedAt: new Date().toISOString(), dataDir: DATA, gapMs: GAP_MS, probe: PROBE, platform: ONLY || 'all' };
 console.log(`本次抓取范围：${doZhilian ? '智联招聘 ' : ''}${do51job ? '前程无忧' : ''}（间隔 ${GAP_MS}ms）`);
+
+/* 预演模式：不联网，只算请求数与预计耗时（node cloud/fetch-all.mjs --plan） */
+if (process.argv.includes('--plan')) {
+  const perReqMs = GAP_MS + 700;   // 5 秒间隔 + 约 0.7 秒网络与解析
+  const plan = (name, kws, cities, pages, codeTable, cap) => {
+    const bad = cities.filter((c) => !codeTable[c]);
+    const reqs = kws.length * cities.length * pages;
+    const mins = (reqs * perReqMs / 60000).toFixed(1);
+    console.log(`\n【${name}】关键词 ${kws.length} × 城市 ${cities.length} × 页数 ${pages} = ${reqs} 次请求 → 约 ${mins} 分钟`);
+    console.log(`  城市：${cities.map((c) => `${c}(${codeTable[c] || '❌未知'})`).join(' ')}`);
+    console.log(`  唯一岗位上限：${cap} 条`);
+    if (bad.length) console.log(`  ❌ 未知城市：${bad.join('、')}｜可用：${Object.keys(codeTable).join('、')}`);
+    return bad.length ? null : reqs * perReqMs;
+  };
+  const tz = doZhilian ? plan('智联招聘', ZL_KWS, ZL_CITIES, ZL_PAGES, ZL_CITY_CODES, ZL_CAP) : 0;
+  const tq = do51job ? plan('前程无忧', QC_KWS, QC_CITIES, QC_PAGES, QC_CITY, QC_CAP) : 0;
+  if (tz === null || tq === null) process.exitCode = 1;
+  else console.log(`\n并行结构下总耗时由较慢的一方决定：约 ${(Math.max(tz, tq) / 60000).toFixed(1)} 分钟（另加合并/评分/构建约 1.5 分钟）`);
+  process.exit(process.exitCode || 0);
+}
 if (doZhilian) {
   try {
     report.zhilian = await fetchZhilian();

@@ -67,8 +67,8 @@ jobs:
           DATA_DIR: data
           PLATFORM: '51job'
           QC_KWS: 'HRBP,人事专员,行政专员,人力资源专员,招聘专员,人事助理,行政助理,人力资源管培生'
-          QC_CITIES: '广州,佛山,深圳,东莞'
-          QC_PAGES: '2'
+          QC_CITIES: '广州,佛山,深圳,东莞,中山,珠海'
+          QC_PAGES: '3'
           GAP_MS: '5000'
         run: node cloud/fetch-all.mjs
 

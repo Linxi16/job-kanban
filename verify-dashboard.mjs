@@ -254,6 +254,9 @@ ok(/setQuota\([^)]*\)|本次不计入次数/.test(js), '触发失败时不消耗
 ok(/id="refresh-progress"/.test(html) && /id="pfill"/.test(html) && /id="pnote"/.test(html), '进度条结构存在（轨道 + 填充 + 百分比）');
 ok(/#refresh-progress\{display:none/.test(html) && /#refresh-progress\.on\{display:block\}/.test(html), '进度条默认隐藏，仅刷新时显示');
 ok(/\.pfill\{[^}]*background:linear-gradient/.test(html), '进度条带颜色渐变');
+ok(/#facc15/.test(html) && /#22c55e/.test(html), '【第22轮】进度条为 黄色→绿色 渐变');
+ok(/POLL_MS\s*=\s*30000/.test(js), '【第22轮】每 30 秒查询一次云端进度');
+ok(!/setTimeout\(poll, (6000|10000|15000)\)/.test(js), '【第22轮】旧的 6/10/15 秒轮询已清除');
 ok(/setProgress\(100/.test(js), '完成后进度到 100%');
 ok(/hideBar\(\)/.test(js), '刷新结束/失败后隐藏进度条');
 ok(/runs\/' \+ runId \+ '\/jobs/.test(js), '进度由云端步骤完成度实时推算');

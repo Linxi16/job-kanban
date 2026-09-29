@@ -430,19 +430,27 @@ document.getElementById('refresh').onclick = function(){
     if (!r.ok && r.status !== 204) throw new Error('触发失败 HTTP ' + r.status);
     btn.textContent = '云端抓取中…';
     var deadline = Date.now() + 30 * 60 * 1000;
+    var POLL_MS = 30000;   // 每 30 秒向云端查询一次
     function poll(){
       if (Date.now() > deadline) { finish('抓取时间较长，请稍后手动刷新页面查看结果。'); return; }
       ghFetch(GH_API + '/workflows/' + GH_WF + '/runs?per_page=1', { token: token })
         .then(function(r){ return r.json(); })
         .then(function(j){
           var run = j && j.workflow_runs && j.workflow_runs[0];
-          if (!run || run.status === 'queued') { setProgress(3, '云端排队中…'); }
-          else if (run.status === 'in_progress') { pollSteps(run.id, token, function(){ setTimeout(poll, 6000); }); return; }
-          else if (run.conclusion === 'success') { setProgress(100, '更新完成，正在重新载入…'); btn.textContent = '更新完成'; setTimeout(function(){ location.reload(); }, 1800); return; }
-          else { finish('云端更新失败：' + run.conclusion + '\n\n可打开 github.com/' + GH_OWNER + '/' + GH_REPO + '/actions 查看日志。'); return; }
-          setTimeout(poll, 10000);
+          if (!run || run.status === 'queued') {
+            setProgress(3, '云端排队中…');
+            setTimeout(poll, POLL_MS);
+          } else if (run.status === 'in_progress') {
+            pollSteps(run.id, token, function(){ setTimeout(poll, POLL_MS); });
+          } else if (run.conclusion === 'success') {
+            setProgress(100, '更新完成，正在重新载入…');
+            btn.textContent = '更新完成';
+            setTimeout(function(){ location.reload(); }, 1800);
+          } else {
+            finish('云端更新失败：' + run.conclusion + '\n\n可打开 github.com/' + GH_OWNER + '/' + GH_REPO + '/actions 查看日志。');
+          }
         })
-        .catch(function(){ setTimeout(poll, 10000); });
+        .catch(function(){ setTimeout(poll, POLL_MS); });
     }
     setTimeout(poll, 5000);
   }).catch(function(e){
