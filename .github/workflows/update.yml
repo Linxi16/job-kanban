@@ -14,11 +14,30 @@ concurrency:
   group: job-refresh
   cancel-in-progress: false
 
+# 全流程共用的抓取参数（改这里即可，两个平台同步生效）
+env:
+  GAP_MS: '3800'          # 请求间隔，用户指定
+  ZL_KWS: 'HRBP,人事专员,行政专员,人力资源专员,招聘专员,人事助理,行政助理,人力资源管培生'
+  ZL_PAGES: '2'
+  QC_KWS: 'HRBP,人事专员,行政专员,人力资源专员,招聘专员,人事助理,行政助理,人力资源管培生'
+  QC_PAGES: '3'
+
 jobs:
-  # ---------- 智联招聘（与下方前程无忧并行）----------
+  # ---------- 智联招聘：按城市分 3 片并行 ----------
   zhilian:
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+        include:
+          - shard: 1
+            cities: '广州,佛山'
+          - shard: 2
+            cities: '深圳,东莞'
+          - shard: 3
+            cities: '中山,珠海'
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
@@ -28,31 +47,39 @@ jobs:
         with:
           node-version: '22'
 
-      - name: 抓取智联招聘
+      - name: 抓取智联招聘（分片 ${{ matrix.shard }}：${{ matrix.cities }}）
         env:
           DATA_DIR: data
           PLATFORM: zhilian
-          ZL_KWS: 'HRBP,人事专员,行政专员,人力资源专员,招聘专员,人事助理,行政助理,人力资源管培生'
-          ZL_CITIES: '广州,佛山,深圳,东莞,中山,珠海'
-          ZL_PAGES: '2'
-          GAP_MS: '5000'
+          SHARD: ${{ matrix.shard }}
+          ZL_CITIES: ${{ matrix.cities }}
         run: node cloud/fetch-all.mjs
 
       - name: 上传抓取结果
         uses: actions/upload-artifact@v4
         with:
-          name: zhilian-data
+          name: zhilian-shard${{ matrix.shard }}
           path: |
-            data/zhilian-list.json
-            data/zhilian-detail.json
-            data/fetch-report-zhilian.json
+            data/zhilian-shard${{ matrix.shard }}-list.json
+            data/fetch-report-zhilian-shard${{ matrix.shard }}.json
           if-no-files-found: error
           retention-days: 3
 
-  # ---------- 前程无忧（与上方智联并行）----------
+  # ---------- 前程无忧：按城市分 3 片并行 ----------
   qc:
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+        include:
+          - shard: 1
+            cities: '广州,佛山'
+          - shard: 2
+            cities: '深圳,东莞'
+          - shard: 3
+            cities: '中山,珠海'
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
@@ -62,27 +89,25 @@ jobs:
         with:
           node-version: '22'
 
-      - name: 抓取前程无忧
+      - name: 抓取前程无忧（分片 ${{ matrix.shard }}：${{ matrix.cities }}）
         env:
           DATA_DIR: data
           PLATFORM: '51job'
-          QC_KWS: 'HRBP,人事专员,行政专员,人力资源专员,招聘专员,人事助理,行政助理,人力资源管培生'
-          QC_CITIES: '广州,佛山,深圳,东莞,中山,珠海'
-          QC_PAGES: '3'
-          GAP_MS: '5000'
+          SHARD: ${{ matrix.shard }}
+          QC_CITIES: ${{ matrix.cities }}
         run: node cloud/fetch-all.mjs
 
       - name: 上传抓取结果
         uses: actions/upload-artifact@v4
         with:
-          name: qc-data
+          name: qc-shard${{ matrix.shard }}
           path: |
-            data/51job-list.json
-            data/fetch-report-51job.json
+            data/51job-shard${{ matrix.shard }}-list.json
+            data/fetch-report-51job-shard${{ matrix.shard }}.json
           if-no-files-found: error
           retention-days: 3
 
-  # ---------- 汇总两个平台 → 评分 → 构建 → 发布 ----------
+  # ---------- 合并 6 个分片 → 评分 → 构建 → 发布 ----------
   refresh:
     needs: [zhilian, qc]
     runs-on: ubuntu-latest
@@ -99,12 +124,17 @@ jobs:
         with:
           node-version: '22'
 
-      - name: 下载两个平台的抓取结果
+      - name: 下载全部分片结果
         uses: actions/download-artifact@v4
         with:
-          pattern: '*-data'
+          pattern: '*-shard*'
           path: data
           merge-multiple: true
+
+      - name: 合并分片
+        env:
+          DATA_DIR: data
+        run: node cloud/merge-shards.mjs
 
       - name: 评分与判定
         env:

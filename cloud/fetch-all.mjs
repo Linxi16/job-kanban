@@ -32,6 +32,9 @@ if (!fs.existsSync(DATA)) fs.mkdirSync(DATA, { recursive: true });
 
 const PROBE = process.argv.includes('--probe');
 const GAP_MS = Number(process.env.GAP_MS || 5000);
+/* SHARD=1..N：本进程只负责一组城市，产物写成 *-shardN-*.json，由 merge-shards.mjs 合并 */
+const SHARD = (process.env.SHARD || '').trim();
+const SHARD_TAG = SHARD ? `-shard${SHARD}` : '';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 const sleep = (ms) => new Promise((s) => setTimeout(s, ms));
 
@@ -105,7 +108,7 @@ async function fetchZhilian() {
       }
     }
   }
-  fs.writeFileSync(path.join(DATA, 'zhilian-list.json'), JSON.stringify(all, null, 1), 'utf8');
+  fs.writeFileSync(path.join(DATA, `zhilian${SHARD_TAG}-list.json`), JSON.stringify(all, null, 1), 'utf8');
   const mins = ((Date.now() - t0) / 60000).toFixed(1);
   const hitCapZ = all.length >= ZL_CAP;
   console.log(`智联完成：${all.length} 条唯一岗位 | ${reqs} 次请求（失败 ${fails}） | ${mins} 分钟`);
@@ -223,7 +226,7 @@ async function fetch51job() {
       }
     }
   }
-  fs.writeFileSync(path.join(DATA, '51job-list.json'), JSON.stringify(all, null, 1), 'utf8');  const mins = ((Date.now() - t0) / 60000).toFixed(1);
+  fs.writeFileSync(path.join(DATA, `51job${SHARD_TAG}-list.json`), JSON.stringify(all, null, 1), 'utf8');  const mins = ((Date.now() - t0) / 60000).toFixed(1);
   const hitCapQ = all.length >= QC_CAP;
   console.log(`前程完成：${all.length} 条唯一岗位 | ${reqs} 次请求（失败 ${fails}） | ${mins} 分钟`);
   if (hitCapQ) console.log(`  ⚠️ 已达到上限 ${QC_CAP} 条，提前结束抓取（本次未跑完全部组合）`);
@@ -274,7 +277,7 @@ if (do51job) {
     report['51job'] = { error: e.message };
   }
 }
-fs.writeFileSync(path.join(DATA, `fetch-report-${ONLY || 'all'}.json`), JSON.stringify(report, null, 1), 'utf8');
+fs.writeFileSync(path.join(DATA, `fetch-report-${(ONLY || 'all')}${SHARD_TAG}.json`), JSON.stringify(report, null, 1), 'utf8');
 fs.writeFileSync(path.join(DATA, 'fetch-report.json'), JSON.stringify(report, null, 1), 'utf8');
 console.log('\n===== 汇总 =====');
 console.log(JSON.stringify(report, null, 1));
