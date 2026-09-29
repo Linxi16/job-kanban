@@ -418,7 +418,7 @@ document.getElementById('refresh').onclick = function(){
   var used = quotaUsed();
   var left = DAILY_LIMIT - used;
   if (left <= 0) { alert('无剩余次数'); return; }
-  if (!confirm('今日剩余次数：' + left + '\n\n确定要刷新数据吗？\n（云端抓取约 10–12 分钟，期间可继续浏览）')) return;
+  if (!confirm('今日剩余次数：' + left + '\n\n确定要刷新数据吗？\n（云端抓取约 5 分钟，期间可继续浏览）')) return;
   var token = ghToken();
   if (!token) { alert('未配置令牌，无法触发云端更新。\n\n你也可以在手机上打开 github.com/' + GH_OWNER + '/' + GH_REPO + '/actions 手动点击运行。'); return; }
   setQuota(used + 1);
