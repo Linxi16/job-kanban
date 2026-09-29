@@ -167,6 +167,11 @@ jobs:
       - name: 回归用例（经验年限解析）
         run: node test-exp-parse.mjs
 
+      # 脱敏的反向测试：往画像里注入真名/手机号/QQ 等，verify-dist 必须逐项抓到。
+      # 光有正向校验（"当前 dist 干净"）证明不了规则还在生效——规则被删掉它照样"干净"。
+      - name: 回归用例（脱敏反向测试：注入 PII 必须被抓到）
+        run: node test-verify-dist.mjs
+
       # 数据审计：读上一步产出的 scored-*.json，核对地域归并与过滤项一致性。
       # 这些脚本会断言并返回非零码（早先只打印、永远 exit 0，是假绿）。
       - name: 数据审计（地域 / 过滤项）

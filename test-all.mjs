@@ -23,7 +23,12 @@ const suites = [
   { name: '应届生判定', script: 'test-fresh-bug.mjs', dirs: ['.tmp-fresh-test', '.tmp-fresh-real'] },
 ];
 // 纯函数单测：不需要夹具，直接跑
-const units = [{ name: '经验年限解析', script: 'test-exp-parse.mjs' }];
+// test-verify-dist 是「脱敏的反向测试」——往数据里注入 PII，verify-dist 必须能抓到。
+// 之前它一直没进套件，等于防泄露守卫闲置；纳入后它自己会失败，才算真守卫。
+const units = [
+  { name: '经验年限解析', script: 'test-exp-parse.mjs' },
+  { name: '脱敏反向测试（注入 PII 必须被抓到）', script: 'test-verify-dist.mjs' },
+];
 // 静态校验（读 data/ 或模板，不需要夹具）
 const verifiers = ['verify-dashboard.mjs', 'verify-dist.mjs', 'verify-workflow.mjs', 'verify-parity.mjs', 'audit-live.mjs'];
 // 数据审计（读 data/scored-*.json，发现问题即非零退出）

@@ -79,7 +79,7 @@ const stepNames = (r.steps || []).map((s) => s.name || '');
 // 回归用例步骤名在这里定义一次，避免和 update.yml 各写一遍导致改一处漏一处
 const CASE_STEPS = ['回归用例（应届生判定）', '回归用例（硬过滤：实习 / 方向 / 地域 / 薪资 / 年薪·日薪·时薪换算）'];
 // 纯函数单测步骤：直接 node 跑，不需要 --make/--check 两阶段
-const UNIT_STEPS = ['回归用例（经验年限解析）'];
+const UNIT_STEPS = ['回归用例（经验年限解析）', '回归用例（脱敏反向测试：注入 PII 必须被抓到）'];
 // 数据审计：读 scored-*.json 做断言（必须非零退出才有意义）
 const AUDIT_STEPS = ['数据审计（地域 / 过滤项）'];
 for (const want of ['合并分片', '评分与判定', '构建看板（本地完整版）', '校验看板（本地完整版）',
@@ -143,17 +143,37 @@ const missingLocal = usedScripts.filter((p) => !fs.existsSync(p));
 ok(missingLocal.length === 0, `工作流调用的脚本本地不存在：${missingLocal}`);
 
 let manifest = [];
+let codeList = [], dataList = [];
 try {
   // 直接 import 单一事实来源，绝不再用正则复制解析清单。
   // （曾用正则解析 .tmp-manifest.mjs，被一行注释文本 // 'test-exp-parse.mjs', 骗过，
   //   守卫显示全绿而云端实际 file-not-found —— 这正是本守卫要防的那类失败。）
-  ({ PUSH: manifest } = await import('./cloud/gh-push-list.mjs'));
+  ({ PUSH: manifest, CODE: codeList, DATA: dataList } = await import('./cloud/gh-push-list.mjs'));
 } catch (e) {
   ok(false, `无法 import cloud/gh-push-list.mjs：${e.message}`);
 }
 ok(Array.isArray(manifest) && manifest.length > 0, '应能从 cloud/gh-push-list.mjs 取到推送清单');
 const notPushed = usedScripts.filter((p) => !manifest.includes(p));
 ok(notPushed.length === 0, `工作流调用但不在推送清单里的脚本（云端会 file-not-found）：${notPushed}`);
+
+// ---------- 代码/数据分家守卫 ----------
+// 本地推送默认只推 CODE。数据类必须待在 DATA 里，否则本地旧副本会静默覆盖云端新数据
+// （页面照常打开、无任何报错，只是岗位列表退回旧的一批 —— 本会话真实踩过一次）。
+ok(codeList.length > 0 && dataList.length > 0, '清单应同时含 CODE 与 DATA 两类');
+const overlap = codeList.filter((f) => dataList.includes(f));
+ok(overlap.length === 0, `CODE 与 DATA 不应重叠：${overlap}`);
+ok(manifest.length === codeList.length + dataList.length, 'PUSH 应等于 CODE + DATA（新增文件时必须归入其中一类）');
+// 用通配而非枚举，保证以后新加的 data/*.json、岗位看板/*、dist/* 自动被覆盖
+const DATA_LIKE = /^(data\/|岗位看板\/|dist\/)/;
+const misplaced = codeList.filter((p) => DATA_LIKE.test(p));
+ok(misplaced.length === 0, `数据/看板产物不得放进 CODE 清单（会被本地旧数据覆盖云端）：${misplaced}`);
+// 反向：DATA 里不应混进代码文件（否则代码永远推不上去）
+const codeLike = dataList.filter((p) => /\.mjs$|\.ya?ml$/.test(p));
+ok(codeLike.length === 0, `DATA 里混进了代码文件：${codeLike}`);
+// 工作流调用的脚本必须落在 CODE（云端 checkout 后要有），绝不能只在 DATA
+const scriptInData = usedScripts.filter((p) => dataList.includes(p));
+ok(scriptInData.length === 0, `工作流脚本不应归入 DATA（本地默认不推）：${scriptInData}`);
+
 // 清单里的条目必须本地都在（否则 gh-upload 会因缺文件失败）
 const manifestMissing = manifest.filter((p) => !fs.existsSync(p));
 ok(manifestMissing.length === 0, `推送清单里本地缺失的文件：${manifestMissing}`);
