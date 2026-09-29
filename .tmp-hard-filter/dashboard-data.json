@@ -1,0 +1,1405 @@
+{
+ "generatedAt": "2026-09-29T20:01:10.898Z",
+ "profile": {
+  "name": "吴家良",
+  "birth": "2003/08",
+  "graduateYear": 2026,
+  "school": "广东财经大学",
+  "major": "人力资源管理（人才开发与管理方向）",
+  "city": "广州市海珠区",
+  "hometown": "广东省云浮市",
+  "targetRoles": [
+   "HRBP",
+   "HR专员",
+   "人力专员",
+   "人力资源专员",
+   "行政专员",
+   "行政助理",
+   "部门助理",
+   "人力资源管培生",
+   "HR管培生"
+  ],
+  "internRoles": [
+   "HRBP",
+   "HR",
+   "招聘",
+   "人力资源"
+  ],
+  "expectSalaryMinK": 6,
+  "english": "CET-4",
+  "mbti": "INFJ"
+ },
+ "platforms": {
+  "zhilian": {
+   "label": "智联招聘",
+   "total": 16,
+   "recommended": 7,
+   "rejected": 9,
+   "jobs": [
+    {
+     "id": "TEST10",
+     "title": "人力资源专员",
+     "company": "测试科技10有限公司",
+     "salaryText": "8-10千",
+     "city": "广州",
+     "district": "天河区",
+     "publishTime": "2026-09-29",
+     "workYear": "经验不限",
+     "degree": "本科",
+     "companySize": "500-999人",
+     "industry": "互联网",
+     "url": "https://example.com/9",
+     "tags": [],
+     "welfareFromPost": [],
+     "jd": "岗位职责：\n1、负责招聘全流程与员工入离职办理。\n2、组织新员工培训与员工关怀活动。\n任职要求：\n1、本科及以上学历，接受应届生。\n福利待遇：五险一金、双休、餐补。",
+     "hasDetail": true,
+     "platform": "智联招聘",
+     "score": 94,
+     "verdict": "强烈推荐",
+     "negatives": [],
+     "penalties": [],
+     "bonuses": [
+      {
+       "k": "公司规模500-999人（500-999人）",
+       "v": 5
+      },
+      {
+       "k": "作息：双休",
+       "v": 10
+      },
+      {
+       "k": "关怀福利：餐补/包吃",
+       "v": 4
+      },
+      {
+       "k": "薪资7k+（8-10千）",
+       "v": 5
+      },
+      {
+       "k": "地点：广州",
+       "v": 5
+      },
+      {
+       "k": "多模块（招聘/培训/员关）",
+       "v": 5
+      },
+      {
+       "k": "接受应届生",
+       "v": 5
+      },
+      {
+       "k": "一周内新发布（0天前）",
+       "v": 5
+      }
+     ],
+     "schedule": {
+      "rest": "双休",
+      "hours": "",
+      "flexible": "",
+      "note": ""
+     },
+     "welfare": [
+      "餐补/包吃",
+      "五险一金",
+      "双休",
+      "培训晋升"
+     ],
+     "welfareCare": [
+      "餐补/包吃"
+     ],
+     "modules": [
+      "招聘",
+      "培训",
+      "员关"
+     ],
+     "moduleWeights": {
+      "规划": 0,
+      "招聘": 25,
+      "培训": 25,
+      "薪酬": 0,
+      "绩效": 0,
+      "员关": 50,
+      "行政": 0,
+      "BP": 0
+     },
+     "bp": false,
+     "scoreBase": 50,
+     "bonusRaw": 44,
+     "bonusCap": 44,
+     "freshOk": true,
+     "freshNote": "接受应届生：JD 明确\"接受应届\"（任职要求段）",
+     "effectiveExp": -1,
+     "expSource": "发布信息",
+     "expLabelYears": -1,
+     "expLabelRaw": "经验不限",
+     "daysAgo": 0,
+     "roleKey": "人力资源专员",
+     "jobDescFull": "岗位职责：\n1、负责招聘全流程与员工入离职办理。\n2、组织新员工培训与员工关怀活动。\n任职要求：\n1、本科及以上学历，接受应届生。\n福利待遇：五险一金、双休、餐补。",
+     "dupCount": 1
+    },
+    {
+     "id": "TEST11",
+     "title": "管培生",
+     "company": "测试科技11有限公司",
+     "salaryText": "8-10千",
+     "city": "广州",
+     "district": "天河区",
+     "publishTime": "2026-09-29",
+     "workYear": "经验不限",
+     "degree": "本科",
+     "companySize": "500-999人",
+     "industry": "互联网",
+     "url": "https://example.com/10",
+     "tags": [],
+     "welfareFromPost": [],
+     "jd": "岗位职责：\n1、轮岗学习人力、行政等模块工作。\n任职要求：\n1、2026届本科及以上学历，接受应届生。\n福利待遇：双休、五险一金。",
+     "hasDetail": true,
+     "platform": "智联招聘",
+     "score": 85,
+     "verdict": "推荐",
+     "negatives": [],
+     "penalties": [],
+     "bonuses": [
+      {
+       "k": "公司规模500-999人（500-999人）",
+       "v": 5
+      },
+      {
+       "k": "作息：双休",
+       "v": 10
+      },
+      {
+       "k": "薪资7k+（8-10千）",
+       "v": 5
+      },
+      {
+       "k": "地点：广州",
+       "v": 5
+      },
+      {
+       "k": "接受应届生",
+       "v": 5
+      },
+      {
+       "k": "一周内新发布（0天前）",
+       "v": 5
+      }
+     ],
+     "schedule": {
+      "rest": "双休",
+      "hours": "",
+      "flexible": "",
+      "note": ""
+     },
+     "welfare": [
+      "五险一金",
+      "双休"
+     ],
+     "welfareCare": [],
+     "modules": [],
+     "moduleWeights": {
+      "规划": 0,
+      "招聘": 0,
+      "培训": 0,
+      "薪酬": 0,
+      "绩效": 0,
+      "员关": 0,
+      "行政": 0,
+      "BP": 0
+     },
+     "bp": false,
+     "scoreBase": 50,
+     "bonusRaw": 35,
+     "bonusCap": 35,
+     "freshOk": true,
+     "freshNote": "接受应届生：JD 明确\"接受应届\"（任职要求段）",
+     "effectiveExp": -1,
+     "expSource": "发布信息",
+     "expLabelYears": -1,
+     "expLabelRaw": "经验不限",
+     "daysAgo": 0,
+     "roleKey": "管培生",
+     "jobDescFull": "岗位职责：\n1、轮岗学习人力、行政等模块工作。\n任职要求：\n1、2026届本科及以上学历，接受应届生。\n福利待遇：双休、五险一金。",
+     "dupCount": 1
+    },
+    {
+     "id": "TEST12",
+     "title": "储备干部",
+     "company": "测试科技12有限公司",
+     "salaryText": "8-10千",
+     "city": "广州",
+     "district": "天河区",
+     "publishTime": "2026-09-29",
+     "workYear": "经验不限",
+     "degree": "本科",
+     "companySize": "500-999人",
+     "industry": "互联网",
+     "url": "https://example.com/11",
+     "tags": [],
+     "welfareFromPost": [],
+     "jd": "岗位职责：\n1、从基层轮岗，往人事行政管理方向培养。\n任职要求：\n1、本科及以上学历，接受应届生。\n福利待遇：双休。",
+     "hasDetail": true,
+     "platform": "智联招聘",
+     "score": 85,
+     "verdict": "推荐",
+     "negatives": [],
+     "penalties": [],
+     "bonuses": [
+      {
+       "k": "公司规模500-999人（500-999人）",
+       "v": 5
+      },
+      {
+       "k": "作息：双休",
+       "v": 10
+      },
+      {
+       "k": "薪资7k+（8-10千）",
+       "v": 5
+      },
+      {
+       "k": "地点：广州",
+       "v": 5
+      },
+      {
+       "k": "接受应届生",
+       "v": 5
+      },
+      {
+       "k": "一周内新发布（0天前）",
+       "v": 5
+      }
+     ],
+     "schedule": {
+      "rest": "双休",
+      "hours": "",
+      "flexible": "",
+      "note": ""
+     },
+     "welfare": [
+      "双休"
+     ],
+     "welfareCare": [],
+     "modules": [
+      "行政"
+     ],
+     "moduleWeights": {
+      "规划": 0,
+      "招聘": 0,
+      "培训": 0,
+      "薪酬": 0,
+      "绩效": 0,
+      "员关": 0,
+      "行政": 100,
+      "BP": 0
+     },
+     "bp": false,
+     "scoreBase": 50,
+     "bonusRaw": 35,
+     "bonusCap": 35,
+     "freshOk": true,
+     "freshNote": "接受应届生：JD 明确\"接受应届\"（任职要求段）",
+     "effectiveExp": -1,
+     "expSource": "发布信息",
+     "expLabelYears": -1,
+     "expLabelRaw": "经验不限",
+     "daysAgo": 0,
+     "roleKey": "管培生",
+     "jobDescFull": "岗位职责：\n1、从基层轮岗，往人事行政管理方向培养。\n任职要求：\n1、本科及以上学历，接受应届生。\n福利待遇：双休。",
+     "dupCount": 1
+    },
+    {
+     "id": "TEST14",
+     "title": "招聘BP",
+     "company": "测试科技14有限公司",
+     "salaryText": "8-10千",
+     "city": "广州",
+     "district": "天河区",
+     "publishTime": "2026-09-29",
+     "workYear": "经验不限",
+     "degree": "本科",
+     "companySize": "500-999人",
+     "industry": "互联网",
+     "url": "https://example.com/13",
+     "tags": [],
+     "welfareFromPost": [],
+     "jd": "岗位职责：\n1、负责业务线招聘交付与人才盘点。\n任职要求：\n1、本科及以上学历，1年以上招聘经验。\n福利待遇：双休。",
+     "hasDetail": true,
+     "platform": "智联招聘",
+     "score": 85,
+     "verdict": "推荐",
+     "negatives": [],
+     "penalties": [],
+     "bonuses": [
+      {
+       "k": "公司规模500-999人（500-999人）",
+       "v": 5
+      },
+      {
+       "k": "作息：双休",
+       "v": 10
+      },
+      {
+       "k": "薪资7k+（8-10千）",
+       "v": 5
+      },
+      {
+       "k": "地点：广州",
+       "v": 5
+      },
+      {
+       "k": "岗位方向：HRBP / HR管培生",
+       "v": 5
+      },
+      {
+       "k": "一周内新发布（0天前）",
+       "v": 5
+      }
+     ],
+     "schedule": {
+      "rest": "双休",
+      "hours": "",
+      "flexible": "",
+      "note": ""
+     },
+     "welfare": [
+      "双休"
+     ],
+     "welfareCare": [],
+     "modules": [],
+     "moduleWeights": {
+      "规划": 0,
+      "招聘": 0,
+      "培训": 0,
+      "薪酬": 0,
+      "绩效": 0,
+      "员关": 0,
+      "行政": 0,
+      "BP": 0
+     },
+     "bp": true,
+     "scoreBase": 50,
+     "bonusRaw": 35,
+     "bonusCap": 35,
+     "freshOk": false,
+     "freshNote": "应届加分被拦截：要求 ≥1 年经验（JD任职要求=1（发布信息=-1，以 JD 为准））",
+     "effectiveExp": 1,
+     "expSource": "JD任职要求",
+     "expLabelYears": -1,
+     "expLabelRaw": "经验不限",
+     "daysAgo": 0,
+     "roleKey": "HRBP",
+     "jobDescFull": "岗位职责：\n1、负责业务线招聘交付与人才盘点。\n任职要求：\n1、本科及以上学历，1年以上招聘经验。\n福利待遇：双休。",
+     "dupCount": 1
+    },
+    {
+     "id": "TEST6",
+     "title": "HRBP助理（研发方向）",
+     "company": "测试科技6有限公司",
+     "salaryText": "8-10千",
+     "city": "广州",
+     "district": "天河区",
+     "publishTime": "2026-09-29",
+     "workYear": "经验不限",
+     "degree": "本科",
+     "companySize": "500-999人",
+     "industry": "互联网",
+     "url": "https://example.com/5",
+     "tags": [],
+     "welfareFromPost": [],
+     "jd": "岗位职责：\n1、负责研发中心的招聘与员工关系维护。\n2、组织研发团队培训与绩效跟进。\n任职要求：\n1、本科及以上学历，1年以上HR相关经验。",
+     "hasDetail": true,
+     "platform": "智联招聘",
+     "score": 80,
+     "verdict": "推荐",
+     "negatives": [],
+     "penalties": [],
+     "bonuses": [
+      {
+       "k": "公司规模500-999人（500-999人）",
+       "v": 5
+      },
+      {
+       "k": "薪资7k+（8-10千）",
+       "v": 5
+      },
+      {
+       "k": "地点：广州",
+       "v": 5
+      },
+      {
+       "k": "多模块（招聘/培训/绩效/员关）",
+       "v": 5
+      },
+      {
+       "k": "岗位方向：HRBP / HR管培生",
+       "v": 5
+      },
+      {
+       "k": "一周内新发布（0天前）",
+       "v": 5
+      }
+     ],
+     "schedule": {
+      "rest": "",
+      "hours": "",
+      "flexible": "",
+      "note": ""
+     },
+     "welfare": [
+      "培训晋升"
+     ],
+     "welfareCare": [],
+     "modules": [
+      "招聘",
+      "培训",
+      "绩效",
+      "员关"
+     ],
+     "moduleWeights": {
+      "规划": 0,
+      "招聘": 25,
+      "培训": 25,
+      "薪酬": 0,
+      "绩效": 25,
+      "员关": 25,
+      "行政": 0,
+      "BP": 0
+     },
+     "bp": true,
+     "scoreBase": 50,
+     "bonusRaw": 30,
+     "bonusCap": 30,
+     "freshOk": false,
+     "freshNote": "应届加分被拦截：要求 ≥1 年经验（JD任职要求=1（发布信息=-1，以 JD 为准））",
+     "effectiveExp": 1,
+     "expSource": "JD任职要求",
+     "expLabelYears": -1,
+     "expLabelRaw": "经验不限",
+     "daysAgo": 0,
+     "roleKey": "HRBP",
+     "jobDescFull": "岗位职责：\n1、负责研发中心的招聘与员工关系维护。\n2、组织研发团队培训与绩效跟进。\n任职要求：\n1、本科及以上学历，1年以上HR相关经验。",
+     "dupCount": 1
+    },
+    {
+     "id": "TEST7",
+     "title": "安全行政专员",
+     "company": "测试科技7有限公司",
+     "salaryText": "8-10千",
+     "city": "广州",
+     "district": "天河区",
+     "publishTime": "2026-09-29",
+     "workYear": "经验不限",
+     "degree": "本科",
+     "companySize": "500-999人",
+     "industry": "互联网",
+     "url": "https://example.com/6",
+     "tags": [],
+     "welfareFromPost": [],
+     "jd": "岗位职责：\n1、负责公司安全生产台账与行政后勤事务。\n2、组织安全培训与办公用品采购。\n任职要求：\n1、大专及以上学历。",
+     "hasDetail": true,
+     "platform": "智联招聘",
+     "score": 78,
+     "verdict": "推荐",
+     "negatives": [],
+     "penalties": [],
+     "bonuses": [
+      {
+       "k": "公司规模500-999人（500-999人）",
+       "v": 5
+      },
+      {
+       "k": "薪资7k+（8-10千）",
+       "v": 5
+      },
+      {
+       "k": "地点：广州",
+       "v": 5
+      },
+      {
+       "k": "双模块（培训/行政）",
+       "v": 3
+      },
+      {
+       "k": "接受应届生",
+       "v": 5
+      },
+      {
+       "k": "一周内新发布（0天前）",
+       "v": 5
+      }
+     ],
+     "schedule": {
+      "rest": "",
+      "hours": "",
+      "flexible": "",
+      "note": ""
+     },
+     "welfare": [
+      "培训晋升"
+     ],
+     "welfareCare": [],
+     "modules": [
+      "培训",
+      "行政"
+     ],
+     "moduleWeights": {
+      "规划": 0,
+      "招聘": 0,
+      "培训": 35,
+      "薪酬": 0,
+      "绩效": 0,
+      "员关": 0,
+      "行政": 65,
+      "BP": 0
+     },
+     "bp": false,
+     "scoreBase": 50,
+     "bonusRaw": 28,
+     "bonusCap": 28,
+     "freshOk": true,
+     "freshNote": "接受应届生：JD 未提年限，采信发布信息\"经验不限\"",
+     "effectiveExp": -1,
+     "expSource": "发布信息",
+     "expLabelYears": -1,
+     "expLabelRaw": "经验不限",
+     "daysAgo": 0,
+     "roleKey": "行政专员",
+     "jobDescFull": "岗位职责：\n1、负责公司安全生产台账与行政后勤事务。\n2、组织安全培训与办公用品采购。\n任职要求：\n1、大专及以上学历。",
+     "dupCount": 1
+    },
+    {
+     "id": "TEST13",
+     "title": "海外管培生（26届毕业生投递）",
+     "company": "测试科技13有限公司",
+     "salaryText": "8-10千",
+     "city": "广州",
+     "district": "天河区",
+     "publishTime": "2026-09-29",
+     "workYear": "经验不限",
+     "degree": "本科",
+     "companySize": "500-999人",
+     "industry": "互联网",
+     "url": "https://example.com/12",
+     "tags": [],
+     "welfareFromPost": [],
+     "jd": "岗位职责：\n1、参与海外业务的人力与行政支持工作。\n任职要求：\n1、2026届本科及以上学历，接受应届生。\n福利待遇：双休、餐补。",
+     "hasDetail": true,
+     "platform": "智联招聘",
+     "score": 69,
+     "verdict": "可考虑",
+     "negatives": [],
+     "penalties": [
+      {
+       "k": "海外/外派岗位（非广东省内常驻）",
+       "v": -20
+      }
+     ],
+     "bonuses": [
+      {
+       "k": "公司规模500-999人（500-999人）",
+       "v": 5
+      },
+      {
+       "k": "作息：双休",
+       "v": 10
+      },
+      {
+       "k": "关怀福利：餐补/包吃",
+       "v": 4
+      },
+      {
+       "k": "薪资7k+（8-10千）",
+       "v": 5
+      },
+      {
+       "k": "地点：广州",
+       "v": 5
+      },
+      {
+       "k": "接受应届生",
+       "v": 5
+      },
+      {
+       "k": "一周内新发布（0天前）",
+       "v": 5
+      }
+     ],
+     "schedule": {
+      "rest": "双休",
+      "hours": "",
+      "flexible": "",
+      "note": ""
+     },
+     "welfare": [
+      "餐补/包吃",
+      "双休"
+     ],
+     "welfareCare": [
+      "餐补/包吃"
+     ],
+     "modules": [
+      "行政"
+     ],
+     "moduleWeights": {
+      "规划": 0,
+      "招聘": 0,
+      "培训": 0,
+      "薪酬": 0,
+      "绩效": 0,
+      "员关": 0,
+      "行政": 100,
+      "BP": 0
+     },
+     "bp": false,
+     "scoreBase": 50,
+     "bonusRaw": 39,
+     "bonusCap": 39,
+     "freshOk": true,
+     "freshNote": "接受应届生：JD 明确\"接受应届\"（任职要求段）",
+     "effectiveExp": -1,
+     "expSource": "发布信息",
+     "expLabelYears": -1,
+     "expLabelRaw": "经验不限",
+     "daysAgo": 0,
+     "roleKey": "管培生",
+     "jobDescFull": "岗位职责：\n1、参与海外业务的人力与行政支持工作。\n任职要求：\n1、2026届本科及以上学历，接受应届生。\n福利待遇：双休、餐补。",
+     "dupCount": 1
+    },
+    {
+     "id": "TEST1",
+     "title": "人力资源实习生",
+     "company": "测试科技1有限公司",
+     "salaryText": "8-10千",
+     "city": "广州",
+     "district": "天河区",
+     "publishTime": "2026-09-29",
+     "workYear": "经验不限",
+     "degree": "本科",
+     "companySize": "500-999人",
+     "industry": "互联网",
+     "url": "https://example.com/0",
+     "tags": [],
+     "welfareFromPost": [],
+     "jd": "岗位描述:\n1.整理人事相关档案资料；\n2.维护并开拓招聘渠道；\n3.协助招聘工作，包含简历搜寻、面试安排等。\n岗位要求:\n1.人力资源管理专业，27届毕业，要求可实习6个月及以上，可提供转正机会；\n2.大学英语通过6级。",
+     "hasDetail": true,
+     "platform": "智联招聘",
+     "score": 53,
+     "verdict": "不推荐",
+     "negatives": [
+      "实习/非应届届别岗位（面向在校生或非2026届）"
+     ],
+     "penalties": [],
+     "bonuses": [
+      {
+       "k": "公司规模500-999人（500-999人）",
+       "v": 5
+      },
+      {
+       "k": "薪资7k+（8-10千）",
+       "v": 5
+      },
+      {
+       "k": "地点：广州",
+       "v": 5
+      },
+      {
+       "k": "双模块（招聘/行政）",
+       "v": 3
+      },
+      {
+       "k": "接受应届生",
+       "v": 5
+      },
+      {
+       "k": "一周内新发布（0天前）",
+       "v": 5
+      }
+     ],
+     "schedule": {
+      "rest": "",
+      "hours": "",
+      "flexible": "",
+      "note": ""
+     },
+     "welfare": [],
+     "welfareCare": [],
+     "modules": [
+      "招聘",
+      "行政"
+     ],
+     "moduleWeights": {
+      "规划": 0,
+      "招聘": 65,
+      "培训": 0,
+      "薪酬": 0,
+      "绩效": 0,
+      "员关": 0,
+      "行政": 35,
+      "BP": 0
+     },
+     "bp": false,
+     "scoreBase": 50,
+     "bonusRaw": 28,
+     "bonusCap": 28,
+     "freshOk": true,
+     "freshNote": "接受应届生：JD 未提年限，采信发布信息\"经验不限\"",
+     "effectiveExp": -1,
+     "expSource": "发布信息",
+     "expLabelYears": -1,
+     "expLabelRaw": "经验不限",
+     "daysAgo": 0,
+     "roleKey": "其它",
+     "jobDescFull": "岗位描述:\n1.整理人事相关档案资料；\n2.维护并开拓招聘渠道；\n3.协助招聘工作，包含简历搜寻、面试安排等。\n岗位要求:\n1.人力资源管理专业，27届毕业，要求可实习6个月及以上，可提供转正机会；\n2.大学英语通过6级。",
+     "dupCount": 1
+    },
+    {
+     "id": "TEST2",
+     "title": "27届人力资源实习生",
+     "company": "测试科技2有限公司",
+     "salaryText": "8-10千",
+     "city": "广州",
+     "district": "天河区",
+     "publishTime": "2026-09-29",
+     "workYear": "经验不限",
+     "degree": "本科",
+     "companySize": "500-999人",
+     "industry": "互联网",
+     "url": "https://example.com/1",
+     "tags": [],
+     "welfareFromPost": [],
+     "jd": "工作职责\n1、基础人事：入转调离办理、资料存档等。\n任职要求\n1、27届本科在校生，人力资源相关专业优先。",
+     "hasDetail": true,
+     "platform": "智联招聘",
+     "score": 50,
+     "verdict": "不推荐",
+     "negatives": [
+      "实习/非应届届别岗位（面向在校生或非2026届）"
+     ],
+     "penalties": [],
+     "bonuses": [
+      {
+       "k": "公司规模500-999人（500-999人）",
+       "v": 5
+      },
+      {
+       "k": "薪资7k+（8-10千）",
+       "v": 5
+      },
+      {
+       "k": "地点：广州",
+       "v": 5
+      },
+      {
+       "k": "接受应届生",
+       "v": 5
+      },
+      {
+       "k": "一周内新发布（0天前）",
+       "v": 5
+      }
+     ],
+     "schedule": {
+      "rest": "",
+      "hours": "",
+      "flexible": "",
+      "note": ""
+     },
+     "welfare": [],
+     "welfareCare": [],
+     "modules": [
+      "员关"
+     ],
+     "moduleWeights": {
+      "规划": 0,
+      "招聘": 0,
+      "培训": 0,
+      "薪酬": 0,
+      "绩效": 0,
+      "员关": 100,
+      "行政": 0,
+      "BP": 0
+     },
+     "bp": false,
+     "scoreBase": 50,
+     "bonusRaw": 25,
+     "bonusCap": 25,
+     "freshOk": true,
+     "freshNote": "接受应届生：JD 未提年限，采信发布信息\"经验不限\"",
+     "effectiveExp": -1,
+     "expSource": "发布信息",
+     "expLabelYears": -1,
+     "expLabelRaw": "经验不限",
+     "daysAgo": 0,
+     "roleKey": "其它",
+     "jobDescFull": "工作职责\n1、基础人事：入转调离办理、资料存档等。\n任职要求\n1、27届本科在校生，人力资源相关专业优先。",
+     "dupCount": 1
+    },
+    {
+     "id": "TEST3",
+     "title": "行政专员",
+     "company": "测试科技3有限公司",
+     "salaryText": "8-10千",
+     "city": "广州",
+     "district": "天河区",
+     "publishTime": "2026-09-29",
+     "workYear": "经验不限",
+     "degree": "本科",
+     "companySize": "500-999人",
+     "industry": "互联网",
+     "url": "https://example.com/2",
+     "tags": [],
+     "welfareFromPost": [],
+     "jd": "岗位职责：\n1、负责行政后勤与办公用品管理。\n任职要求：\n1、本科及以上学历，要求实习6个月以上，每周到岗5天。",
+     "hasDetail": true,
+     "platform": "智联招聘",
+     "score": 50,
+     "verdict": "不推荐",
+     "negatives": [
+      "实习/非应届届别岗位（面向在校生或非2026届）"
+     ],
+     "penalties": [],
+     "bonuses": [
+      {
+       "k": "公司规模500-999人（500-999人）",
+       "v": 5
+      },
+      {
+       "k": "薪资7k+（8-10千）",
+       "v": 5
+      },
+      {
+       "k": "地点：广州",
+       "v": 5
+      },
+      {
+       "k": "接受应届生",
+       "v": 5
+      },
+      {
+       "k": "一周内新发布（0天前）",
+       "v": 5
+      }
+     ],
+     "schedule": {
+      "rest": "",
+      "hours": "",
+      "flexible": "",
+      "note": ""
+     },
+     "welfare": [],
+     "welfareCare": [],
+     "modules": [],
+     "moduleWeights": {
+      "规划": 0,
+      "招聘": 0,
+      "培训": 0,
+      "薪酬": 0,
+      "绩效": 0,
+      "员关": 0,
+      "行政": 0,
+      "BP": 0
+     },
+     "bp": false,
+     "scoreBase": 50,
+     "bonusRaw": 25,
+     "bonusCap": 25,
+     "freshOk": true,
+     "freshNote": "接受应届生：JD 未提年限，采信发布信息\"经验不限\"",
+     "effectiveExp": -1,
+     "expSource": "发布信息",
+     "expLabelYears": -1,
+     "expLabelRaw": "经验不限",
+     "daysAgo": 0,
+     "roleKey": "行政专员",
+     "jobDescFull": "岗位职责：\n1、负责行政后勤与办公用品管理。\n任职要求：\n1、本科及以上学历，要求实习6个月以上，每周到岗5天。",
+     "dupCount": 1
+    },
+    {
+     "id": "TEST5",
+     "title": "电商运营助理",
+     "company": "测试科技5有限公司",
+     "salaryText": "8-10千",
+     "city": "广州",
+     "district": "天河区",
+     "publishTime": "2026-09-29",
+     "workYear": "经验不限",
+     "degree": "本科",
+     "companySize": "500-999人",
+     "industry": "互联网",
+     "url": "https://example.com/4",
+     "tags": [],
+     "welfareFromPost": [],
+     "jd": "岗位职责：\n1、负责店铺日常运营与活动报名。\n任职要求：\n1、本科及以上学历。",
+     "hasDetail": true,
+     "platform": "智联招聘",
+     "score": 50,
+     "verdict": "不推荐",
+     "negatives": [
+      "岗位方向不符（标题：电商运营助理）"
+     ],
+     "penalties": [],
+     "bonuses": [
+      {
+       "k": "公司规模500-999人（500-999人）",
+       "v": 5
+      },
+      {
+       "k": "薪资7k+（8-10千）",
+       "v": 5
+      },
+      {
+       "k": "地点：广州",
+       "v": 5
+      },
+      {
+       "k": "接受应届生",
+       "v": 5
+      },
+      {
+       "k": "一周内新发布（0天前）",
+       "v": 5
+      }
+     ],
+     "schedule": {
+      "rest": "",
+      "hours": "",
+      "flexible": "",
+      "note": ""
+     },
+     "welfare": [],
+     "welfareCare": [],
+     "modules": [],
+     "moduleWeights": {
+      "规划": 0,
+      "招聘": 0,
+      "培训": 0,
+      "薪酬": 0,
+      "绩效": 0,
+      "员关": 0,
+      "行政": 0,
+      "BP": 0
+     },
+     "bp": false,
+     "scoreBase": 50,
+     "bonusRaw": 25,
+     "bonusCap": 25,
+     "freshOk": true,
+     "freshNote": "接受应届生：JD 未提年限，采信发布信息\"经验不限\"",
+     "effectiveExp": -1,
+     "expSource": "发布信息",
+     "expLabelYears": -1,
+     "expLabelRaw": "经验不限",
+     "daysAgo": 0,
+     "roleKey": "部门助理",
+     "jobDescFull": "岗位职责：\n1、负责店铺日常运营与活动报名。\n任职要求：\n1、本科及以上学历。",
+     "dupCount": 1
+    },
+    {
+     "id": "TEST15",
+     "title": "运营培训生",
+     "company": "测试科技15有限公司",
+     "salaryText": "8-10千",
+     "city": "广州",
+     "district": "天河区",
+     "publishTime": "2026-09-29",
+     "workYear": "经验不限",
+     "degree": "本科",
+     "companySize": "500-999人",
+     "industry": "互联网",
+     "url": "https://example.com/14",
+     "tags": [],
+     "welfareFromPost": [],
+     "jd": "岗位职责：\n1、参与平台运营与商家管理工作。\n任职要求：\n1、2026届本科及以上学历。",
+     "hasDetail": true,
+     "platform": "智联招聘",
+     "score": 50,
+     "verdict": "不推荐",
+     "negatives": [
+      "岗位方向不符（标题：运营培训生）"
+     ],
+     "penalties": [],
+     "bonuses": [
+      {
+       "k": "公司规模500-999人（500-999人）",
+       "v": 5
+      },
+      {
+       "k": "薪资7k+（8-10千）",
+       "v": 5
+      },
+      {
+       "k": "地点：广州",
+       "v": 5
+      },
+      {
+       "k": "接受应届生",
+       "v": 5
+      },
+      {
+       "k": "一周内新发布（0天前）",
+       "v": 5
+      }
+     ],
+     "schedule": {
+      "rest": "",
+      "hours": "",
+      "flexible": "",
+      "note": ""
+     },
+     "welfare": [
+      "培训晋升"
+     ],
+     "welfareCare": [],
+     "modules": [],
+     "moduleWeights": {
+      "规划": 0,
+      "招聘": 0,
+      "培训": 0,
+      "薪酬": 0,
+      "绩效": 0,
+      "员关": 0,
+      "行政": 0,
+      "BP": 0
+     },
+     "bp": false,
+     "scoreBase": 50,
+     "bonusRaw": 25,
+     "bonusCap": 25,
+     "freshOk": true,
+     "freshNote": "接受应届生：JD 未提年限，采信发布信息\"经验不限\"",
+     "effectiveExp": -1,
+     "expSource": "发布信息",
+     "expLabelYears": -1,
+     "expLabelRaw": "经验不限",
+     "daysAgo": 0,
+     "roleKey": "管培生",
+     "jobDescFull": "岗位职责：\n1、参与平台运营与商家管理工作。\n任职要求：\n1、2026届本科及以上学历。",
+     "dupCount": 1
+    },
+    {
+     "id": "TEST8",
+     "title": "人事专员",
+     "company": "测试科技8有限公司",
+     "salaryText": "8-10千",
+     "city": "上海",
+     "district": "天河区",
+     "publishTime": "2026-09-29",
+     "workYear": "经验不限",
+     "degree": "本科",
+     "companySize": "500-999人",
+     "industry": "互联网",
+     "url": "https://example.com/7",
+     "tags": [],
+     "welfareFromPost": [],
+     "jd": "岗位职责：\n1、负责人事招聘与员工关系。\n任职要求：\n1、本科及以上学历。",
+     "hasDetail": true,
+     "platform": "智联招聘",
+     "score": 45,
+     "verdict": "不推荐",
+     "negatives": [
+      "非广东省内（上海）"
+     ],
+     "penalties": [],
+     "bonuses": [
+      {
+       "k": "公司规模500-999人（500-999人）",
+       "v": 5
+      },
+      {
+       "k": "薪资7k+（8-10千）",
+       "v": 5
+      },
+      {
+       "k": "接受应届生",
+       "v": 5
+      },
+      {
+       "k": "一周内新发布（0天前）",
+       "v": 5
+      }
+     ],
+     "schedule": {
+      "rest": "",
+      "hours": "",
+      "flexible": "",
+      "note": ""
+     },
+     "welfare": [],
+     "welfareCare": [],
+     "modules": [],
+     "moduleWeights": {
+      "规划": 0,
+      "招聘": 0,
+      "培训": 0,
+      "薪酬": 0,
+      "绩效": 0,
+      "员关": 0,
+      "行政": 0,
+      "BP": 0
+     },
+     "bp": false,
+     "scoreBase": 50,
+     "bonusRaw": 20,
+     "bonusCap": 20,
+     "freshOk": true,
+     "freshNote": "接受应届生：JD 未提年限，采信发布信息\"经验不限\"",
+     "effectiveExp": -1,
+     "expSource": "发布信息",
+     "expLabelYears": -1,
+     "expLabelRaw": "经验不限",
+     "daysAgo": 0,
+     "roleKey": "人力资源专员",
+     "jobDescFull": "岗位职责：\n1、负责人事招聘与员工关系。\n任职要求：\n1、本科及以上学历。",
+     "dupCount": 1
+    },
+    {
+     "id": "TEST9",
+     "title": "行政助理",
+     "company": "测试科技9有限公司",
+     "salaryText": "3.5-4千",
+     "city": "广州",
+     "district": "天河区",
+     "publishTime": "2026-09-29",
+     "workYear": "经验不限",
+     "degree": "本科",
+     "companySize": "500-999人",
+     "industry": "互联网",
+     "url": "https://example.com/8",
+     "tags": [],
+     "welfareFromPost": [],
+     "jd": "岗位职责：\n1、负责行政日常事务。\n任职要求：\n1、大专及以上学历。",
+     "hasDetail": true,
+     "platform": "智联招聘",
+     "score": 39,
+     "verdict": "不推荐",
+     "negatives": [
+      "薪资低于6k（3.5-4千）"
+     ],
+     "penalties": [
+      {
+       "k": "薪资偏低（3.5-4千）",
+       "v": -6
+      }
+     ],
+     "bonuses": [
+      {
+       "k": "公司规模500-999人（500-999人）",
+       "v": 5
+      },
+      {
+       "k": "地点：广州",
+       "v": 5
+      },
+      {
+       "k": "接受应届生",
+       "v": 5
+      },
+      {
+       "k": "一周内新发布（0天前）",
+       "v": 5
+      }
+     ],
+     "schedule": {
+      "rest": "",
+      "hours": "",
+      "flexible": "",
+      "note": ""
+     },
+     "welfare": [],
+     "welfareCare": [],
+     "modules": [],
+     "moduleWeights": {
+      "规划": 0,
+      "招聘": 0,
+      "培训": 0,
+      "薪酬": 0,
+      "绩效": 0,
+      "员关": 0,
+      "行政": 0,
+      "BP": 0
+     },
+     "bp": false,
+     "scoreBase": 50,
+     "bonusRaw": 20,
+     "bonusCap": 20,
+     "freshOk": true,
+     "freshNote": "接受应届生：JD 未提年限，采信发布信息\"经验不限\"",
+     "effectiveExp": -1,
+     "expSource": "发布信息",
+     "expLabelYears": -1,
+     "expLabelRaw": "经验不限",
+     "daysAgo": 0,
+     "roleKey": "行政专员",
+     "jobDescFull": "岗位职责：\n1、负责行政日常事务。\n任职要求：\n1、大专及以上学历。",
+     "dupCount": 1
+    },
+    {
+     "id": "TEST4",
+     "title": "供应链管理培训生",
+     "company": "测试科技4有限公司",
+     "salaryText": "8-10千",
+     "city": "广州",
+     "district": "天河区",
+     "publishTime": "2026-09-29",
+     "workYear": "经验不限",
+     "degree": "本科",
+     "companySize": "500-999人",
+     "industry": "互联网",
+     "url": "https://example.com/3",
+     "tags": [],
+     "welfareFromPost": [],
+     "jd": "岗位职责：\n1、参与供应链计划、采购与仓储轮岗。\n任职要求：\n1、2026届本科及以上学历，物流/供应链专业。",
+     "hasDetail": true,
+     "platform": "智联招聘",
+     "score": 25,
+     "verdict": "不推荐",
+     "negatives": [
+      "管培方向不符（供应链管理培训生）",
+      "岗位方向不符（标题：供应链管理培训生）"
+     ],
+     "penalties": [],
+     "bonuses": [
+      {
+       "k": "公司规模500-999人（500-999人）",
+       "v": 5
+      },
+      {
+       "k": "薪资7k+（8-10千）",
+       "v": 5
+      },
+      {
+       "k": "地点：广州",
+       "v": 5
+      },
+      {
+       "k": "接受应届生",
+       "v": 5
+      },
+      {
+       "k": "一周内新发布（0天前）",
+       "v": 5
+      }
+     ],
+     "schedule": {
+      "rest": "",
+      "hours": "",
+      "flexible": "",
+      "note": ""
+     },
+     "welfare": [
+      "培训晋升"
+     ],
+     "welfareCare": [],
+     "modules": [],
+     "moduleWeights": {
+      "规划": 0,
+      "招聘": 0,
+      "培训": 0,
+      "薪酬": 0,
+      "绩效": 0,
+      "员关": 0,
+      "行政": 0,
+      "BP": 0
+     },
+     "bp": false,
+     "scoreBase": 50,
+     "bonusRaw": 25,
+     "bonusCap": 25,
+     "freshOk": true,
+     "freshNote": "接受应届生：JD 未提年限，采信发布信息\"经验不限\"",
+     "effectiveExp": -1,
+     "expSource": "发布信息",
+     "expLabelYears": -1,
+     "expLabelRaw": "经验不限",
+     "daysAgo": 0,
+     "roleKey": "管培生",
+     "jobDescFull": "岗位职责：\n1、参与供应链计划、采购与仓储轮岗。\n任职要求：\n1、2026届本科及以上学历，物流/供应链专业。",
+     "dupCount": 1
+    },
+    {
+     "id": "TEST16",
+     "title": "财务BP(总经理助理）",
+     "company": "测试科技16有限公司",
+     "salaryText": "8-10千",
+     "city": "广州",
+     "district": "天河区",
+     "publishTime": "2026-09-29",
+     "workYear": "经验不限",
+     "degree": "本科",
+     "companySize": "500-999人",
+     "industry": "互联网",
+     "url": "https://example.com/15",
+     "tags": [],
+     "welfareFromPost": [],
+     "jd": "岗位职责：\n1、负责事业部财务分析与预算管理。\n任职要求：\n1、本科及以上学历，5年以上财务经验。",
+     "hasDetail": true,
+     "platform": "智联招聘",
+     "score": 5,
+     "verdict": "不推荐",
+     "negatives": [
+      "经验要求超出校招范围（5年·JD任职要求）",
+      "岗位方向不符（标题：财务BP(总经理助理））"
+     ],
+     "penalties": [
+      {
+       "k": "管理/资深岗位（应届不匹配）",
+       "v": -15
+      }
+     ],
+     "bonuses": [
+      {
+       "k": "公司规模500-999人（500-999人）",
+       "v": 5
+      },
+      {
+       "k": "薪资7k+（8-10千）",
+       "v": 5
+      },
+      {
+       "k": "地点：广州",
+       "v": 5
+      },
+      {
+       "k": "一周内新发布（0天前）",
+       "v": 5
+      }
+     ],
+     "schedule": {
+      "rest": "",
+      "hours": "",
+      "flexible": "",
+      "note": ""
+     },
+     "welfare": [],
+     "welfareCare": [],
+     "modules": [],
+     "moduleWeights": {
+      "规划": 0,
+      "招聘": 0,
+      "培训": 0,
+      "薪酬": 0,
+      "绩效": 0,
+      "员关": 0,
+      "行政": 0,
+      "BP": 0
+     },
+     "bp": false,
+     "scoreBase": 50,
+     "bonusRaw": 20,
+     "bonusCap": 20,
+     "freshOk": false,
+     "freshNote": "应届加分被拦截：要求 ≥5 年经验（JD任职要求=5（发布信息=-1，以 JD 为准））",
+     "effectiveExp": 5,
+     "expSource": "JD任职要求",
+     "expLabelYears": -1,
+     "expLabelRaw": "经验不限",
+     "daysAgo": 0,
+     "roleKey": "HRBP",
+     "jobDescFull": "岗位职责：\n1、负责事业部财务分析与预算管理。\n任职要求：\n1、本科及以上学历，5年以上财务经验。",
+     "dupCount": 1
+    }
+   ]
+  }
+ }
+}
