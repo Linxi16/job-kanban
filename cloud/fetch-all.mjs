@@ -215,19 +215,30 @@ async function fetch51job() {
 }
 
 // ---------------- 主流程 ----------------
-const report = { generatedAt: new Date().toISOString(), dataDir: DATA, gapMs: GAP_MS, probe: PROBE };
-try {
-  report.zhilian = await fetchZhilian();
-} catch (e) {
-  console.log('智联整体失败:', e.message);
-  report.zhilian = { error: e.message };
+/* PLATFORM=zhilian 或 51job 时只抓一个平台（云端拆成两个并行任务，各平台内部仍严格保持 GAP_MS 间隔）。
+   两个平台访问的是不同网站，并行不会给任何单一站点增加压力。 */
+const ONLY = (process.env.PLATFORM || '').trim().toLowerCase();
+const doZhilian = !ONLY || ONLY === 'zhilian' || ONLY === '智联';
+const do51job = !ONLY || ONLY === '51job' || ONLY === '前程';
+const report = { generatedAt: new Date().toISOString(), dataDir: DATA, gapMs: GAP_MS, probe: PROBE, platform: ONLY || 'all' };
+console.log(`本次抓取范围：${doZhilian ? '智联招聘 ' : ''}${do51job ? '前程无忧' : ''}（间隔 ${GAP_MS}ms）`);
+if (doZhilian) {
+  try {
+    report.zhilian = await fetchZhilian();
+  } catch (e) {
+    console.log('智联整体失败:', e.message);
+    report.zhilian = { error: e.message };
+  }
 }
-try {
-  report['51job'] = await fetch51job();
-} catch (e) {
-  console.log('前程整体失败:', e.message);
-  report['51job'] = { error: e.message };
+if (do51job) {
+  try {
+    report['51job'] = await fetch51job();
+  } catch (e) {
+    console.log('前程整体失败:', e.message);
+    report['51job'] = { error: e.message };
+  }
 }
+fs.writeFileSync(path.join(DATA, `fetch-report-${ONLY || 'all'}.json`), JSON.stringify(report, null, 1), 'utf8');
 fs.writeFileSync(path.join(DATA, 'fetch-report.json'), JSON.stringify(report, null, 1), 'utf8');
 console.log('\n===== 汇总 =====');
 console.log(JSON.stringify(report, null, 1));

@@ -49,6 +49,14 @@ button:hover{border-color:#cfd8e3;background:#fcfdff}
 button.primary{background:#16a34a;border-color:#16a34a;color:#fff;box-shadow:0 1px 2px rgba(22,163,74,.3)}
 button.primary:hover{background:#15803d;border-color:#15803d}
 button:disabled{opacity:.5;cursor:default}
+/* ---------- 云端抓取进度条（仅刷新时显示）---------- */
+#refresh-progress{display:none;margin:14px 0 4px}
+#refresh-progress.on{display:block}
+.pbar{display:flex;align-items:center;gap:12px}
+.pbar .ptrack{flex:1;height:12px;background:#e6ecf3;border-radius:999px;overflow:hidden;box-shadow:inset 0 1px 2px rgba(15,23,42,.06)}
+.pbar .pfill{height:100%;width:0%;border-radius:999px;background:linear-gradient(90deg,#3b82f6,#16a34a);transition:width .5s ease}
+#refresh-progress.done .pfill{background:linear-gradient(90deg,#16a34a,#15803d)}
+.pbar .pnote{font-size:15.5px;color:var(--ink3);white-space:nowrap;font-variant-numeric:tabular-nums}
 
 /* ---------- 平台切换（对称居中，各平台专属色）---------- */
 .tabs{display:flex;justify-content:center;margin-bottom:32px}
@@ -191,6 +199,12 @@ footer{margin-top:52px;padding-top:24px;border-top:1px solid var(--line);font-si
   <div class="hrow">
     <span class="stamp" id="stamp">!STAMP!</span>
     <button class="primary" id="refresh">刷新数据</button>
+  </div>
+  <div id="refresh-progress">
+    <div class="pbar">
+      <span class="ptrack"><span class="pfill" id="pfill"></span></span>
+      <span class="pnote" id="pnote">0%</span>
+    </div>
   </div>
 </header>
 

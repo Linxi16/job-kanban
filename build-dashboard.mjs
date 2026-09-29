@@ -123,6 +123,14 @@ fs.mkdirSync(OUT_DIR, { recursive: true });
 fs.writeFileSync(OUT_HTML, html, 'utf8');
 fs.writeFileSync(OUT_JSON, JSON.stringify(payload), 'utf8');
 
+/* 发布目录额外写一份 index.html：手机直接访问站点根路径（不带文件名）也能打开看板 */
+const isSiteDir = /^(dist|site|public)$/i.test(path.basename(path.resolve(OUT_DIR)));
+if (isSiteDir) {
+  const idx = path.join(OUT_DIR, 'index.html');
+  fs.writeFileSync(idx, html, 'utf8');
+  console.log('✅ 站点首页:', idx.replace(/\\/g, '/'), '（访问根路径即可打开）');
+}
+
 const kb = (n) => Math.round(n / 1024) + ' KB';
 console.log('✅ 看板已生成:', path.resolve(OUT_HTML), '(' + kb(Buffer.byteLength(html, 'utf8')) + ')');
 console.log('✅ 数据副本:', OUT_JSON.replace(/\\/g, '/'), '(' + kb(Buffer.byteLength(JSON.stringify(payload), 'utf8')) + ')');

@@ -15,11 +15,78 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  refresh:
+  # ---------- 智联招聘（与下方前程无忧并行）----------
+  zhilian:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
-    env:
-      SANITIZE: '1'          # 发布版本自动脱敏（姓名换成笔名，学校/现居/籍贯不输出）
+    timeout-minutes: 40
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 准备 Node 环境
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 抓取智联招聘
+        env:
+          DATA_DIR: data
+          PLATFORM: zhilian
+          ZL_KWS: 'HRBP,人事专员,行政专员,人力资源专员,招聘专员,人事助理,行政助理,人力资源管培生'
+          ZL_CITIES: '广州,佛山,深圳,东莞,中山,珠海'
+          ZL_PAGES: '2'
+          GAP_MS: '5000'
+        run: node cloud/fetch-all.mjs
+
+      - name: 上传抓取结果
+        uses: actions/upload-artifact@v4
+        with:
+          name: zhilian-data
+          path: |
+            data/zhilian-list.json
+            data/zhilian-detail.json
+            data/fetch-report-zhilian.json
+          if-no-files-found: error
+          retention-days: 3
+
+  # ---------- 前程无忧（与上方智联并行）----------
+  qc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 准备 Node 环境
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 抓取前程无忧
+        env:
+          DATA_DIR: data
+          PLATFORM: '51job'
+          QC_KWS: 'HRBP,人事专员,行政专员,人力资源专员,招聘专员,人事助理,行政助理,人力资源管培生'
+          QC_CITIES: '广州,佛山,深圳,东莞'
+          QC_PAGES: '2'
+          GAP_MS: '5000'
+        run: node cloud/fetch-all.mjs
+
+      - name: 上传抓取结果
+        uses: actions/upload-artifact@v4
+        with:
+          name: qc-data
+          path: |
+            data/51job-list.json
+            data/fetch-report-51job.json
+          if-no-files-found: error
+          retention-days: 3
+
+  # ---------- 汇总两个平台 → 评分 → 构建 → 发布 ----------
+  refresh:
+    needs: [zhilian, qc]
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
@@ -32,17 +99,12 @@ jobs:
         with:
           node-version: '22'
 
-      - name: 抓取双平台最新岗位
-        env:
-          DATA_DIR: data
-          ZL_KWS: 'HRBP,人事专员,行政专员,人力资源专员,招聘专员,人事助理,行政助理,人力资源管培生'
-          ZL_CITIES: '广州,佛山,深圳,东莞,中山,珠海'
-          ZL_PAGES: '2'
-          QC_KWS: 'HRBP,人事专员,行政专员,人力资源专员,招聘专员,人事助理,行政助理,人力资源管培生'
-          QC_CITIES: '广州,佛山,深圳,东莞'
-          QC_PAGES: '2'
-          GAP_MS: '5000'
-        run: node cloud/fetch-all.mjs
+      - name: 下载两个平台的抓取结果
+        uses: actions/download-artifact@v4
+        with:
+          pattern: '*-data'
+          path: data
+          merge-multiple: true
 
       - name: 评分与判定
         env:
@@ -54,15 +116,22 @@ jobs:
           DATA_DIR: data
         run: node export-report.mjs
 
-      - name: 构建看板
+      - name: 构建看板（本地完整版）
+        run: node build-dashboard.mjs
+
+      - name: 校验看板（本地完整版）
+        run: node verify-dashboard.mjs
+
+      - name: 构建看板（云端发布版·脱敏）
         env:
           OUT_DIR: dist
+          SANITIZE: '1'
           GH_OWNER: ${{ github.repository_owner }}
           GH_REPO: ${{ github.event.repository.name }}
         run: node build-dashboard.mjs
 
-      - name: 校验看板
-        run: node verify-dashboard.mjs
+      - name: 校验发布版（结构 + 脱敏）
+        run: node verify-dist.mjs
 
       - name: 归档快照（只保留最近 10 份）
         run: |

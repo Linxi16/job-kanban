@@ -410,10 +410,18 @@ function ghFetch(url, opt){
 }
 document.getElementById('refresh').onclick = function(){
   var btn = this;
+  var used = quotaUsed();
+  var left = DAILY_LIMIT - used;
+  if (left <= 0) { alert('无剩余次数'); return; }
+  if (!confirm('今日剩余次数：' + left + '\n\n确定要刷新数据吗？\n（云端抓取约 10–12 分钟，期间可继续浏览）')) return;
   var token = ghToken();
   if (!token) { alert('未配置令牌，无法触发云端更新。\n\n你也可以在手机上打开 github.com/' + GH_OWNER + '/' + GH_REPO + '/actions 手动点击运行。'); return; }
+  setQuota(used + 1);
+
   var old = btn.textContent;
-  btn.disabled = true; btn.textContent = '正在触发云端更新…';
+  btn.disabled = true; btn.textContent = '正在触发…';
+  showBar(); setProgress(2, '已触发，正在排队…');
+
   ghFetch(GH_API + '/workflows/' + GH_WF + '/dispatches', {
     method: 'POST', token: token,
     body: JSON.stringify({ ref: 'main', inputs: {} })
@@ -421,34 +429,80 @@ document.getElementById('refresh').onclick = function(){
     if (r.status === 401 || r.status === 403) throw new Error('令牌无效或权限不足（需要 repo + workflow）');
     if (!r.ok && r.status !== 204) throw new Error('触发失败 HTTP ' + r.status);
     btn.textContent = '云端抓取中…';
-    var deadline = Date.now() + 25 * 60 * 1000;
+    var deadline = Date.now() + 30 * 60 * 1000;
     function poll(){
-      if (Date.now() > deadline) { btn.disabled = false; btn.textContent = old; alert('抓取时间较长，请稍后刷新页面查看结果。'); return; }
+      if (Date.now() > deadline) { finish('抓取时间较长，请稍后手动刷新页面查看结果。'); return; }
       ghFetch(GH_API + '/workflows/' + GH_WF + '/runs?per_page=1', { token: token })
         .then(function(r){ return r.json(); })
         .then(function(j){
           var run = j && j.workflow_runs && j.workflow_runs[0];
-          if (!run || run.status === 'queued') { btn.textContent = '云端排队中…'; }
-          else if (run.status === 'in_progress') { btn.textContent = '云端抓取中…'; }
-          else if (run.conclusion === 'success') {
-            btn.disabled = false; btn.textContent = '更新完成，重新载入中…';
-            setTimeout(function(){ location.reload(); }, 1500);
-            return;
-          } else {
-            btn.disabled = false; btn.textContent = old;
-            alert('云端更新失败：' + run.conclusion + '\n\n可打开 github.com/' + GH_OWNER + '/' + GH_REPO + '/actions 查看日志。');
-            return;
-          }
-          setTimeout(poll, 15000);
+          if (!run || run.status === 'queued') { setProgress(3, '云端排队中…'); }
+          else if (run.status === 'in_progress') { pollSteps(run.id, token, function(){ setTimeout(poll, 6000); }); return; }
+          else if (run.conclusion === 'success') { setProgress(100, '更新完成，正在重新载入…'); btn.textContent = '更新完成'; setTimeout(function(){ location.reload(); }, 1800); return; }
+          else { finish('云端更新失败：' + run.conclusion + '\n\n可打开 github.com/' + GH_OWNER + '/' + GH_REPO + '/actions 查看日志。'); return; }
+          setTimeout(poll, 10000);
         })
-        .catch(function(){ setTimeout(poll, 15000); });
+        .catch(function(){ setTimeout(poll, 10000); });
     }
-    setTimeout(poll, 8000);
+    setTimeout(poll, 5000);
   }).catch(function(e){
-    btn.disabled = false; btn.textContent = old;
-    alert('无法触发云端更新：' + e.message + '\n\n若令牌已过期，请重新生成后在浏览器里清除站点数据再试。');
+    var back = DAILY_LIMIT - quotaUsed();
+    finish('无法触发云端更新：' + e.message + '\n\n本次不计入次数，今日剩余：' + back + ' 次');
   });
+
+  function finish(msg){
+    btn.disabled = false; btn.textContent = old;
+    hideBar();
+    if (msg) alert(msg);
+  }
 };
+
+/* ---------- 进度条 ---------- */
+var elProg = document.getElementById('refresh-progress');
+var elFill = document.getElementById('pfill');
+var elNote = document.getElementById('pnote');
+function showBar(){ if (elProg) elProg.className = 'on'; }
+function hideBar(){ if (elProg) elProg.className = ''; }
+function setProgress(p, note){
+  p = Math.max(0, Math.min(100, Math.round(p)));
+  if (elFill) elFill.style.width = p + '%';
+  if (elNote) elNote.textContent = p + '%' + (note ? ' · ' + note : '');
+}
+/** 用已完成的步骤数推算进度（抓取占大头，用步骤内的耗时做插值） */
+function pollSteps(runId, token, done){
+  ghFetch(GH_API + '/runs/' + runId + '/jobs', { token: token })
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      var steps = (j.jobs && j.jobs[0] && j.jobs[0].steps) || [];
+      var total = 0, finished = 0, active = null;
+      steps.forEach(function(s){ if (s.conclusion !== 'skipped') { total++; if (s.status === 'completed') finished++; else if (!active) active = s; } });
+      if (!total) { setProgress(5, '云端已启动…'); }
+      else {
+        var pct = finished / total * 100;
+        var name = active ? active.name : '处理中';
+        var note = name.replace(/（.*?）/g, '').replace(/^抓取双平台最新岗位$/, '抓取岗位中');
+        setProgress(pct, finished >= total ? '正在发布…' : note + ' ' + (finished + 1) + '/' + total);
+      }
+    })
+    .catch(function(){})
+    .then(function(){ done && done(); });
+}
+
+/* ---------- 每日刷新次数（每日凌晨重置）---------- */
+var DAILY_LIMIT = 3;
+var QUOTA_KEY = 'wjl-refresh-quota';
+function todayKey(){ var d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+function quotaUsed(){
+  try {
+    var o = JSON.parse(localStorage.getItem(QUOTA_KEY) || 'null');
+    if (!o || o.d !== todayKey()) return 0;     // 跨天自动重置
+    return o.n || 0;
+  } catch(e) { return 0; }
+}
+function setQuota(n){
+  try { localStorage.setItem(QUOTA_KEY, JSON.stringify({ d: todayKey(), n: n })); } catch(e) {}
+}
+
 
 function stamp(){
   var d = new Date(DATA.builtAt || DATA.generatedAt);

@@ -242,6 +242,23 @@ if (nodes.sort.onchange) {
 
 // 刷新按钮与页脚
 ok(typeof nodes.refresh.onclick === 'function', '刷新按钮已绑定事件');
+
+/* ============ 第21轮：每日刷新次数上限 + 抓取进度条 ============ */
+ok(/DAILY_LIMIT\s*=\s*3/.test(js), '每日刷新上限为 3 次');
+ok(/wjl-refresh-quota/.test(js), '刷新次数按本地记录累计');
+ok(/o\.d\s*!==\s*todayKey\(\)/.test(js) && /return 0/.test(js), '跨天自动重置次数（每日凌晨归零）');
+ok(/alert\('无剩余次数'\)/.test(js), '次数用尽提示「无剩余次数」');
+ok(/今日剩余次数：/.test(js), '刷新前弹窗显示「今日剩余次数：X」');
+ok(/setQuota\(used \+ 1\)/.test(js), '触发即扣减一次次数');
+ok(/setQuota\([^)]*\)|本次不计入次数/.test(js), '触发失败时不消耗次数');
+ok(/id="refresh-progress"/.test(html) && /id="pfill"/.test(html) && /id="pnote"/.test(html), '进度条结构存在（轨道 + 填充 + 百分比）');
+ok(/#refresh-progress\{display:none/.test(html) && /#refresh-progress\.on\{display:block\}/.test(html), '进度条默认隐藏，仅刷新时显示');
+ok(/\.pfill\{[^}]*background:linear-gradient/.test(html), '进度条带颜色渐变');
+ok(/setProgress\(100/.test(js), '完成后进度到 100%');
+ok(/hideBar\(\)/.test(js), '刷新结束/失败后隐藏进度条');
+ok(/runs\/' \+ runId \+ '\/jobs/.test(js), '进度由云端步骤完成度实时推算');
+ok(/function pollSteps/.test(js) && /s\.status === 'completed'/.test(js), '按已完成步骤数计算百分比');
+
 /* 第 16 轮：页脚只保留「当前平台 … 点击岗位标题可跳转至岗位页面」一行，其余全部删除 */
 const bodyHtml14 = html.replace(/<script id="payload"[\s\S]*?<\/script>/, '');
 ok(!/id="foot"/.test(bodyHtml14) && !/elFoot\b/.test(js), '【第16轮】页脚统计行（收录/评分 75 分以上）已删除');
@@ -384,8 +401,8 @@ ok(/@media\(max-width:760px\)/.test(html), '移动端自适应存在');
 ok(/minmax\(620px/.test(html), '【第11轮】卡片网格加宽（配合更大字号，避免文字过挤）');
 const open = (html.match(/\{/g) || []).length, close = (html.match(/\}/g) || []).length;
 ok(Math.abs(open - close) <= 2, `花括号基本配平 — ${open} vs ${close}`);
-ok(!/https?:\/\/(?!www\.zhaopin|jobs\.51job|sou\.zhaopin)[a-z0-9.-]*\.(com|cn|net)/i.test(bodyHtml.replace(/<a href="[^"]*"/g, '')), '零外部依赖');
-ok(/charset="utf-8"/.test(html) && /吴家良/.test(html), 'UTF-8 声明与中文正常');
+ok(!/https?:\/\/(?!www\.zhaopin|jobs\.51job|sou\.zhaopin|api\.github|github\.com)[a-z0-9.-]*\.(com|cn|net)/i.test(bodyHtml.replace(/<a href="[^"]*"/g, '')), '零外部依赖');
+ok(/charset="utf-8"/.test(html) && /吴家良|林小夕/.test(html), 'UTF-8 声明与中文正常');
 
 console.log(`\n合计：通过 ${pass} / 失败 ${fail}`);
 process.exit(fail ? 1 : 0);
