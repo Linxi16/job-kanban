@@ -10,7 +10,7 @@
 import fs from 'fs';
 import path from 'path';
 
-const VERSION = 'v1';
+const VERSION = 'v1.0';
 const MAXJD = 1800;                 // 单条 JD 内嵌上限（控制页面体积）
 const OUT_DIR = process.env.OUT_DIR || '岗位看板';
 const OUT_HTML = path.join(OUT_DIR, '看板.html');
@@ -104,7 +104,7 @@ const payload = {
 };
 
 /* ---------- 组装页面 ----------
-   版本号与"版本行"都由这里统一生成：v1 ● 2026/9/29 ——林小夕 */
+   版本号与"版本行"都由这里统一生成：v1.0 ● 2026/9/29 ——林小夕 */
 const d = new Date(builtAt);
 const STAMP = `${VERSION} ● ${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ——林小夕`;
 const GH_OWNER = process.env.GH_OWNER || 'Linxi16';
