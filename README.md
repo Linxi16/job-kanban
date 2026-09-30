@@ -17,7 +17,7 @@
 2. 点「刷新数据」按钮，弹出框里粘贴一个 GitHub 令牌
    - 令牌申请：https://github.com/settings/tokens → Generate new token (classic) → 勾选 `repo` 和 `workflow`
    - 令牌只保存在**你本机浏览器**里，不会上传到任何地方
-3. 之后每天最多可刷新 **3 次**，每日凌晨自动重置；按钮下方进度条（黄→绿）会实时显示云端进度
+3. 之后每天最多可刷新 **5 次**，每日凌晨自动重置；按钮下方进度条（黄→绿）会实时显示云端进度，按钮下方还有一行小字显示「上次刷新：x年x月x日x时x分」（北京时间）
 
 > 安全提示：令牌等于密码，不要发给别人。用完可在 https://github.com/settings/tokens 随时删除或重新生成（删除后重新粘贴一个新令牌即可）。
 
@@ -41,9 +41,11 @@
 
 1. **看板页面上的「刷新数据」按钮**（手机、电脑均可）— 推荐，无需电脑
    - 首次点击会提示粘贴 GitHub 令牌（只存在本机浏览器，不会上传）
-   - **每天最多 3 次**，每日凌晨自动重置
+   - **每天最多 5 次**，每日凌晨自动重置
    - 点击时弹窗显示「今日剩余次数：X」；用完后提示「无剩余次数」
    - 按钮下方有彩色进度条（**黄色→绿色**渐变），实时显示云端抓取进度（0% → 100%），每 30 秒向云端查询一次；刷新结束或失败后自动隐藏
+   - 进度按云端**全部 7 个任务**加权推算（6 个抓取分片 + 1 个构建发布），不会卡在 100%
+   - 按钮下方一行小字：「上次刷新：2026年9月30日5时32分」（取自云端构建时刻，固定北京时间）
 2. **手机 GitHub App** → 本仓库 → Actions → 「更新岗位数据」→ Run workflow
 3. **网页** → https://github.com/Linxi16/job-kanban/actions → 「更新岗位数据」→ Run workflow
 
@@ -94,15 +96,15 @@ node cloud/fetch-all.mjs --plan
 | `score-engine.mjs` | 评分与判定引擎 |
 | `export-report.mjs` | 生成 CSV 与汇总报告 |
 | `build-dashboard.mjs` | 把数据打包成单文件看板 |
-| `verify-dashboard.mjs` | 本地完整版校验（130 项） |
+| `verify-dashboard.mjs` | 本地完整版校验（167 项） |
 | `verify-dist.mjs` | 云端发布版校验（结构 + 脱敏，26 项） |
 | `dist-sanitize.mjs` | 脱敏判定逻辑（校验脚本与反向测试共用） |
 | `test-verify-dist.mjs` | 脱敏校验的反向测试（注入 PII 必须被抓到） |
-| `verify-workflow.mjs` | 工作流 YAML 结构校验（52 项） |
+| `verify-workflow.mjs` | 工作流 YAML 结构校验（90 项） |
 | `templates/dashboard.html` `templates/dashboard.js` | 看板设计模板（页面结构与全部样式） |
 | `岗位看板/` | 战报与 CSV 产物（本地版，含完整求职信息） |
 | `dist/` | 发布到 Pages 的站点（**已脱敏**，署名「林小夕」） |
-| `归档/` | 历史快照（只保留最近 10 份） |
+| `归档/` | 历史快照（只保留最近 3 份） |
 | `data/` | 抓取原始数据与评分结果 |
 
 ## 本地版 vs 云端发布版

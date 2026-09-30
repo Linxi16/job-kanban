@@ -23,6 +23,7 @@ export const CODE = [
   '.gitignore',
   '.github/workflows/update.yml',
   'README.md',
+  '交接说明.md',   // 给"下一个接手这个项目的 AI"的操作手册（会话可能被删除，知识要落盘）
   'tools/README.md',   // 已删除脚本的留痕（避免以后翻 Git 历史猜用途）
 
   // 引擎与构建
