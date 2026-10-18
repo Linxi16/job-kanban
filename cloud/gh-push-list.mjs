@@ -24,15 +24,15 @@ export const CODE = [
   '.github/workflows/update.yml',
   'README.md',
   '交接说明.md',   // 给"下一个接手这个项目的 AI"的操作手册（会话可能被删除，知识要落盘）
-  'tools/README.md',   // 已删除脚本的留痕（避免以后翻 Git 历史猜用途）
 
   // 引擎与构建
   'score-engine.mjs',
   'build-dashboard.mjs',
   'export-report.mjs',
 
-  // 本地画像（读简历 PDF）——仅在本地跑，但需随仓库留存
-  'extract-resume.mjs',
+  // 本地画像（读简历 PDF）
+  // 注：extract-resume.mjs 与 tools/README.md 已随求职工具迁到「简历优化/」，
+  //     不再属于本仓库，故从清单移除；仓库里的旧副本不会被 gh-upload 删除。
   'profile-data.mjs',
   'dist-sanitize.mjs',
   'cleanup-scratch.mjs',

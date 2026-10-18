@@ -9,10 +9,18 @@
  */
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
-const VERSION = 'v1.0';
+const VERSION = 'v2.0';
+/* 版本行的日期是「版本发布日期」，写死而非跟随构建日：
+   用户明确要求它代表 2.0 这个版本的发布日，不应随每次刷新而变。
+   注意与「上次刷新」小字区分——那一个取自 builtAt，会随刷新更新。 */
+const RELEASE_DATE = '2026/10/19';
 const MAXJD = 1800;                 // 单条 JD 内嵌上限（控制页面体积）
-const OUT_DIR = process.env.OUT_DIR || '岗位看板';
+const __dir = path.dirname(fileURLToPath(import.meta.url));
+// 产物目录：env 优先；工作区把「岗位看板」放在上一层；仓库内（CI）就用仓库里的 岗位看板/
+const OUT_DIR = process.env.OUT_DIR
+  || (fs.existsSync(path.join(__dir, '..', '岗位看板')) ? path.join(__dir, '..', '岗位看板') : '岗位看板');
 const OUT_HTML = path.join(OUT_DIR, '看板.html');
 const OUT_JSON = path.join(OUT_DIR, '看板数据.json');
 
@@ -46,23 +54,40 @@ function bpTag(x) {
   return /(hr\s*bp|人力资源业务伙伴|业务伙伴|管培生|管理培训生|储备干部|储备经理)/i.test(t);
 }
 
+/* ---------- 是否接受应届生：三态（是 / 否 / ？）----------
+   用户口径：
+     · 能接受应届 / 在校生            → 是
+     · 写明要几年经验（含"1年以下"）  → 否
+     · 标题与 JD 都没提               → ？
+   注意两个坑：
+   1) 引擎把「在校生/应届生」和「1年以下」都压成了数字 0，单看数字分不出来，
+      所以这里按**原始标签文本**判断，不看那个数字。
+   2) 「无需经验」平台写法和「无经验」不同，引擎已修正；这里同样认。
+   JD 明确接受应届时以 JD 为准（freshOk 已在引擎按 JD 判定）。 */
+const FRESH_YES = /经验不限|不限经验|无需经验|无需工作经验|不需经验|在校生|应届/;
+function freshState(x) {
+  if (x.freshOk) return '是';
+  const raw = String(x.expLabelRaw || '');
+  if (raw && FRESH_YES.test(raw)) return '是';
+  if (raw && /[0-9０-９]|年/.test(raw)) return '否';
+  return '？';
+}
+
 /* ---------- 打包 ---------- */
 function packJob(x) {
   return {
     id: x.id, t: x.title, c: x.company, s: x.salaryText || '',
     city: x.city || '', dist: x.district || '',
-    pub: (x.publishTime || '').slice(0, 10), exp: x.workYear || '', expRaw: x.expLabelRaw || '',
-    expFrom: x.expSource || '', deg: x.degree || '',
-    size: x.companySize || '', ind: x.industry || '', url: x.url || '',
+    pub: (x.publishTime || '').slice(0, 10), ts: x.publishTime || '',
+    exp: x.workYear || '', expRaw: x.expLabelRaw || '', expFrom: x.expSource || '',
+    deg: x.degree || '', size: x.companySize || '', url: x.url || '',
     score: x.score, v: x.verdict,
     neg: (x.negatives || []).slice(0, 4), pen: x.penalties || [], bon: x.bonuses || [],
     rest: (x.schedule || {}).rest || '', hours: (x.schedule || {}).hours || '', flex: (x.schedule || {}).flexible || '',
-    wel: (x.welfare || []).slice(0, 8), mod: (x.modules || []).slice(0, 8),
-    fresh: !!x.freshOk, days: x.daysAgo, dup: x.dupCount || 1,
+    mod: (x.modules || []).slice(0, 8),
+    fresh: !!x.freshOk, fr: freshState(x), days: x.daysAgo,
     jd: (x.jobDescFull || x.jd || '').slice(0, MAXJD),
-    hr: x.hrName || '', hrPos: x.hrPosition || '', hrOn: !!x.hrOnline,
-    role: x.roleKey || '', grad: gradTag(x),
-    bp: bpTag(x),
+    grad: gradTag(x), bp: bpTag(x),
   };
 }
 
@@ -83,15 +108,18 @@ function sanitizeProfile(p) {
   };
 }
 
+/* v2.0：不再只打包「推荐岗位」，抓到的每一条都进页面（用户要求展示全部 500+500）。
+   推荐数单独统计给页签显示；低分/被过滤的岗位同样可浏览、可检索。 */
 const platforms = [];
 for (const [key, p] of Object.entries(dash.platforms)) {
-  const rec = (p.jobs || []).filter((x) => x.verdict !== '不推荐');
+  const all = p.jobs || [];
+  const recN = all.filter((x) => x.verdict !== '不推荐' && Number(x.score) >= 75).length;
   platforms.push({
     key, label: p.label || key,
-    total: p.total || (p.jobs || []).length,
-    recommended: p.recommended != null ? p.recommended : rec.length,
-    rejected: p.rejected != null ? p.rejected : ((p.jobs || []).length - rec.length),
-    jobs: rec.map(packJob),
+    total: p.total || all.length,
+    recommended: recN,
+    rejected: (p.total || all.length) - recN,
+    jobs: all.map(packJob),
   });
 }
 
@@ -104,9 +132,8 @@ const payload = {
 };
 
 /* ---------- 组装页面 ----------
-   版本号与"版本行"都由这里统一生成：v1.0 ● 2026/9/29 ——林小夕 */
-const d = new Date(builtAt);
-const STAMP = `${VERSION} ● ${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ——林小夕`;
+   版本行固定为「v2.0 ● 2026/10/19 ——林小夕」：日期是版本发布日，不随构建变化 */
+const STAMP = `${VERSION} ● ${RELEASE_DATE} ——林小夕`;
 const GH_OWNER = process.env.GH_OWNER || 'Linxi16';
 const GH_REPO = process.env.GH_REPO || 'job-kanban';
 const GH_WF = process.env.GH_WF || 'update.yml';

@@ -9,8 +9,12 @@
 import fs from 'fs';
 import vm from 'vm';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
-const FILE = path.join('岗位看板', '看板.html');
+const __dir = path.dirname(fileURLToPath(import.meta.url));
+const KANBAN = process.env.KANBAN_DIR
+  || (fs.existsSync(path.join(__dir, '..', '岗位看板')) ? path.join(__dir, '..', '岗位看板') : path.join(__dir, '岗位看板'));
+const FILE = path.join(KANBAN, '看板.html');
 const html = fs.readFileSync(FILE, 'utf8');
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) { pass++; console.log('✅ ' + m); } else { fail++; console.log('❌ ' + m); } };
@@ -30,21 +34,41 @@ if (P) {
 
   for (const p of P.platforms) {
     const jobs = p.jobs || [];
-    const rec = jobs.filter((x) => x.v !== '不推荐');
-    const withPub = rec.filter((x) => x.pub).length;
-    const withJD = rec.filter((x) => x.jd && x.jd.length > 20).length;
-    const withRest = rec.filter((x) => x.rest).length;
-    console.log(`   ${p.label}: 收录 ${p.total} | 内嵌推荐 ${rec.length} | 推荐有发布时间 ${withPub}/${rec.length} | 推荐有JD ${withJD}/${rec.length} | 推荐有作息 ${withRest}`);
+    const withJD = jobs.filter((x) => x.jd && x.jd.length > 20).length;
+    const withRest = jobs.filter((x) => x.rest).length;
+    console.log(`   ${p.label}: 收录 ${p.total} | 内嵌 ${jobs.length} | 有JD ${withJD}/${jobs.length} | 有作息 ${withRest}`);
     ok(jobs.every((x) => x.t && x.c), `${p.label} 所有岗位都有标题与公司名`);
-    ok(rec.length > 0, `${p.label} 有推荐岗位`);
-    ok(withJD === rec.length, `${p.label} 推荐岗位全部有 JD（${withJD}/${rec.length}）`);
-    ok(rec.every((x) => typeof x.score === 'number' && x.score > 0), `${p.label} 推荐岗位评分均已计算`);
-    ok(rec.every((x) => ['强烈推荐', '推荐', '可考虑', '备选'].includes(x.v)), `${p.label} 判定值合法`);
+    ok(jobs.length === p.total, `${p.label} v2.0 内嵌全部岗位（${jobs.length}/${p.total}）`);
+    ok(withJD === jobs.length, `${p.label} 全部岗位都有 JD（${withJD}/${jobs.length}）`);
+    ok(jobs.every((x) => typeof x.score === 'number' && x.score >= 0), `${p.label} 全部岗位评分均已计算`);
+    ok(jobs.every((x) => ['强烈推荐', '推荐', '可考虑', '备选', '不推荐'].includes(x.v)), `${p.label} 判定值合法（含「不推荐」）`);
     const bad = jobs.filter((x) => x.v === '不推荐' && (!x.neg || !x.neg.length));
     ok(bad.length === 0, `${p.label} 不推荐岗位都写明了过滤原因`);
+
+    /* v2.0 P2/P4：接受应届生为三态，且必须是 是/否/？ 之一 */
+    ok(jobs.every((x) => ['是', '否', '？'].includes(x.fr)), `${p.label} 接受应届生三态取值合法`);
+    const frDist = {};
+    for (const x of jobs) frDist[x.fr] = (frDist[x.fr] || 0) + 1;
+    ok((frDist['是'] || 0) > 0 && (frDist['否'] || 0) > 0,
+      `${p.label} 三态分布合理（是 ${frDist['是'] || 0} / 否 ${frDist['否'] || 0} / ？ ${frDist['？'] || 0}）`);
+    /* 「经验不限 / 无需经验 / 在校生·应届生」必须判为「是」，写明要年限的必须判为「否」 */
+    const yesRaw = jobs.filter((x) => /经验不限|无需经验|在校生|应届/.test(String(x.expRaw || '')));
+    ok(yesRaw.length > 0 && yesRaw.every((x) => x.fr === '是'),
+      `${p.label} 经验不限/无需经验/在校生一律判「是」（${yesRaw.length} 条）`);
+    const noRaw = jobs.filter((x) => /^\d/.test(String(x.expRaw || '')) && !/不限|无需|在校生|应届/.test(String(x.expRaw || '')) && !x.fresh);
+    ok(noRaw.length > 0 && noRaw.every((x) => x.fr === '否'),
+      `${p.label} 明确写明年限且未声明接受应届的判「否」（含「1年以下」，${noRaw.length} 条）`);
+
+    /* v2.0 P1：作息只允许四种制度或空 */
+    ok(jobs.every((x) => !x.rest || ['双休', '单休', '大小周', '排班轮休'].includes(x.rest)),
+      `${p.label} 作息取值只可能是四种制度或为空`);
+
+    /* 需求4 依赖：每条都要有完整发布时间戳（24 小时窗口不能用日期粗算） */
+    ok(jobs.every((x) => /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(x.ts || '')),
+      `${p.label} 每条岗位都有完整发布时间戳`);
   }
   ok(P.platforms.every((p) => p.total >= 400), `两个平台收录量均已接近/达到 500（${P.platforms.map((p) => p.total).join(' / ')}）`);
-  ok(P.platforms.every((p) => p.jobs.length === p.recommended), '内嵌数据仅含推荐岗位（不推荐岗已剔除，页面体积可控）');
+  ok(P.platforms.every((p) => p.jobs.length === p.total), 'v2.0：不再剔除「不推荐」，抓到的岗位全部内嵌展示');
 }
 
 /* ================= B. 语法 ================= */
@@ -76,8 +100,15 @@ function toDataset(attrs) {
 function makeEl(tag) {
   const el = {
     tagName: tag, innerHTML: '', textContent: '', value: '', disabled: false, onclick: null,
-    className: '', _onclick: null,
+    className: '', _onclick: null, _attrs: {},
+    getAttribute(n) { return this._attrs[n] == null ? null : this._attrs[n]; },
+    setAttribute(n, v) { this._attrs[n] = String(v); },
+    insertAdjacentHTML(_pos, h) { this.innerHTML += h; },
     querySelectorAll(sel) {
+      /* 真实 DOM 里同一个元素每次查询都返回同一个对象——脚本正是靠这个
+         给按钮绑 onclick。若每次新建对象，外部再查一次拿到的就是没有处理函数的副本。 */
+      this._cacheMap = this._cacheMap || {};
+      if (this._cacheInner === this.innerHTML && this._cacheMap[sel]) return this._cacheMap[sel];
       const cls = sel.replace(/^\./, '');
       const out = [];
       const re = /<(button|span)([^>]*)>/g; let m;
@@ -86,36 +117,60 @@ function makeEl(tag) {
         const attrs = parseAttrs(m[2]);
         if (sel !== tagName && !(attrs.class || '').split(/\s+/).includes(cls)) continue;
         const child = makeEl(tagName);
+        child._attrs = attrs;
         child.dataset = toDataset(attrs);   // 与浏览器一致：data-key → dataset.key
         const parent = this;
         // 注意：必须用箭头函数闭包，否则 parent._onclick.call(child) 中的 this 会错绑
         child.onclick = () => (typeof parent._onclick === 'function' ? parent._onclick.call(child) : undefined);
         out.push(child);
       }
+      this._cacheMap = {}; this._cacheInner = this.innerHTML; this._cacheMap[sel] = out;
       return out;
     },
   };
   return el;
 }
 const nodes = {};
-const IDS = ['tabs', 'chips', 'grid', 'sort', 'stamp', 'notice', 'foot-plat', 'refresh'];
+const IDS = ['tabs', 'chips', 'grid', 'more', 'sort', 'stamp', 'notice', 'foot-plat', 'refresh',
+  'q', 'smode', 'toast', 'changelog', 'last-refresh', 'refresh-progress', 'pfill', 'pnote'];
 for (const id of IDS) nodes[id] = makeEl('div');
 // payload 脚本块：把原始 JSON 文本喂给看板脚本
 nodes.payload = makeEl('script');
 nodes.payload.textContent = pm ? pm[1].replace(/<\\\//g, '</') : '{}';
+/* 动态元素（如「加载更多」按钮）：代码用 getElementById 取回后绑 onclick，
+   必须返回同一个对象才能触发，所以按 id 缓存。 */
+const dyn = {};
+function dynamicEl(id) {
+  if (dyn[id]) return dyn[id];
+  for (const k of Object.keys(nodes)) {
+    if (nodes[k].innerHTML && nodes[k].innerHTML.indexOf('id="' + id + '"') >= 0) return (dyn[id] = makeEl('div'));
+  }
+  return null;
+}
 let stored = {};
+const sessionStored = {};
 const sandbox = {
   document: {
-    getElementById: (id) => nodes[id] || null,
+    getElementById: (id) => nodes[id] || dynamicEl(id),
     querySelectorAll: () => [],
   },
   localStorage: {
     getItem: (k) => (k in stored ? stored[k] : null),
     setItem: (k, v) => { stored[k] = String(v); },
   },
+  sessionStorage: {
+    getItem: (k) => (k in sessionStored ? sessionStored[k] : null),
+    setItem: (k, v) => { sessionStored[k] = String(v); },
+    removeItem: (k) => { delete sessionStored[k]; },
+  },
   alert: () => {}, fetch: () => Promise.reject(new Error('no-net')),
   setTimeout, clearTimeout, console, Date, Math, JSON, Number, String, Object, Array, RegExp, parseInt, parseFloat,
 };
+/* 静态 HTML 里的「搜索模式切换」与「更新日志弹窗」是模板写死的，
+   DOM 桩不会解析静态标记，这里把真实片段灌进去，才能测到点击行为 */
+const smodeHtml = (html.match(/<div class="smode" id="smode">([\s\S]*?)<\/div>/) || [, ''])[1];
+nodes.smode.innerHTML = smodeHtml;
+nodes.changelog.innerHTML = '<button class="primary mok" id="changelog-ok">我知道了</button>';
 try {
   vm.createContext(sandbox);
   vm.runInContext(js, sandbox, { timeout: 10000 });
@@ -133,45 +188,49 @@ try {
     + grab(/function modHay\(j\)\{[\s\S]*?\n\}/) + '\n'
     + grab(/function modsOf\(j\)\{[\s\S]*?\n\}/) + '\n'
     + grab(/function dutyItems\(j\)\{[\s\S]*?\n\}/) + '\n'
-    + grab(/function modCount\(j, m\)\{[\s\S]*?\n\}/) + '\n'
-    + grab(/function modWeights\(j\)\{[\s\S]*?\n\}/) + '\n'
-    + grab(/function modWeight\(j, m\)\{[\s\S]*?\n\}/) + '\n'
+    + grab(/function modCount\(items, m\)\{[\s\S]*?\n\}/) + '\n'
+    + grab(/function coreTop\(j, n\)\{[\s\S]*?\n\}/) + '\n'
     + grab(/function modWhy\(j, m\)\{[\s\S]*?\n\}/) + '\n'
-    + '\nreturn { modsOf: modsOf, dutyItems: dutyItems, modWeights: modWeights, modWeight: modWeight, modWhy: modWhy, MODULES: MODULES };';
+    + '\nreturn { modsOf: modsOf, dutyItems: dutyItems, coreTop: coreTop, modWhy: modWhy, MODULES: MODULES, MOD_PAT: MOD_PAT };';
   try {
     const api = new Function(defs)();
     nodes._modsOf = api.modsOf;
     nodes._dutyItems = api.dutyItems;
-    nodes._modWeights = api.modWeights;
-    nodes._modWeight = api.modWeight;
+    nodes._coreTop = api.coreTop;
+    nodes._modWhy = api.modWhy;
     nodes._MODULES = api.MODULES;
-    ok(typeof api.modsOf === 'function' && typeof api.dutyItems === 'function' && typeof api.modWeights === 'function',
-      '模块判定 / 职责条目 / 占比分配函数可供实测调用');
+    nodes._MOD_PAT = api.MOD_PAT;
+    ok(typeof api.modsOf === 'function' && typeof api.dutyItems === 'function' && typeof api.coreTop === 'function',
+      '模块判定 / 职责条目 / 核心工作内容（取前 3）函数可供实测调用');
   } catch (e) { ok(false, '抽取模块判定函数 — ' + e.message); }
 }
 
 const grid = nodes.grid.innerHTML;
 const cardCount = (grid.match(/<article class="card/g) || []).length;
 const p0 = P.platforms[0];
-/* 第 13 轮：推荐门槛 = 原始评分 75 分以上，页面只展示达到门槛的岗位 */
+const PAGE = 50;          // 与 templates/dashboard.js 的分批渲染常量一致
 const REC = (p) => (p.jobs || []).filter((j) => j.v !== '不推荐' && j.score >= 75);
-const rec0 = REC(p0).length;
-ok(cardCount === rec0, `首屏只渲染 75 分以上的岗位 ${rec0} 张卡（实际 ${cardCount}）`);
-ok(!/card out/.test(grid) && !/过滤：/.test(grid), '不推荐岗位未出现在页面上');
+/* v2.0：抓到的岗位全部参与展示与检索，不再按 75 分筛；
+   首屏只渲染前 PAGE 条——1000 条一次性渲染会产生 4~5 万个 DOM 节点，手机会卡。 */
+const rec0 = Math.min(PAGE, (p0.jobs || []).length);
+ok(cardCount === rec0, `首屏按分批渲染展示 ${rec0} 张卡（实际 ${cardCount}）`);
+const remain0 = (p0.jobs || []).length - cardCount;
+ok(nodes.more.innerHTML.indexOf('还有 ' + remain0 + ' 条') >= 0,
+  `「加载更多」标出剩余条数（还有 ${remain0} 条）`);
 
 // 评分：百分制原始分，直接取自引擎（不再做平台内相对归一化）
 const idxs = (grid.match(/<div class="sc"><b>(\d+)<\/b><i>推荐指数<\/i>/g) || []).map((s) => Number(s.replace(/\D+/g, '').slice(0, 3)));
 ok(idxs.length === cardCount, `每张卡的分数都带「推荐指数」标签（${idxs.length}/${cardCount}）`);
-ok(idxs.every((v) => v >= 75 && v <= 100), `展示的评分均为 75–100（${Math.min(...idxs)}–${Math.max(...idxs)}）`);
+ok(idxs.every((v) => v >= 0 && v <= 100), `展示的评分均为 0–100（${Math.min(...idxs)}–${Math.max(...idxs)}）`);
 ok(idxs.every((v, i) => i === 0 || idxs[i - 1] >= v), '默认按评分降序排列');
-ok(idxs.length > 0 && idxs[0] === Math.max(...REC(p0).map((j) => j.score)), `榜首即本平台最高评分（${idxs[0]}）`);
+ok(idxs.length > 0 && idxs[0] === Math.max(...(p0.jobs || []).map((j) => j.score)), `榜首即本平台最高评分（${idxs[0]}）`);
 ok(!/<i>综合推荐指数<\/i>/.test(html) && /<i>推荐指数<\/i>/.test(html), '右上角标题改为「推荐指数」（数值仍为引擎原始评分）');
 ok(/--hot:#dc2626/.test(html), '90+ 红色配色变量已定义');
 const hotCount = (grid.match(/card idx-hot/g) || []).length;
 ok(hotCount === idxs.filter((v) => v >= 90).length, `≥90 分卡片标记为红色档（${hotCount} 张）`);
 
 /* 切到前程无忧（样本更多），后续内容类断言都在这里做 */
-const rec1 = REC(P.platforms[1]).length;
+const rec1 = Math.min(PAGE, (P.platforms[1].jobs || []).length);
 let gridQC = '';
 if (typeof nodes.tabs._onclick === 'function') {
   nodes.tabs._onclick({ dataset: { i: '1' } });
@@ -179,12 +238,13 @@ if (typeof nodes.tabs._onclick === 'function') {
   const n1 = (gridQC.match(/<article class="card/g) || []).length;
   ok(n1 === rec1, `切到前程无忧后渲染 ${rec1} 条（实际 ${n1}）`);
   ok(/class="on" data-key="51job"/.test(nodes.tabs.innerHTML), '当前激活平台为前程无忧');
-  // 用「推荐岗位」筛选反证：页面上的岗位必须都属于 75 分以上
-  const visible = Number((gridQC.match(/<article class="card/g) || []).length);
-  ok(visible === REC(P.platforms[1]).length, '前程无忧页面上全部是 75 分以上的岗位');
+  // 页签上的「推荐 N / 收录 M」必须与实际数据一致
+  const recN = REC(P.platforms[1]).length;
+  ok(nodes.tabs.innerHTML.indexOf('推荐 ' + recN) >= 0 && nodes.tabs.innerHTML.indexOf('收录 ' + P.platforms[1].total) >= 0,
+    `页签计数正确（推荐 ${recN} / 收录 ${P.platforms[1].total}）`);
 }
 
-// 结构化 7 项标签（在前面程无忧的卡片上核验，样本更全）
+// 结构化标签（在前面程无忧的卡片上核验，样本更全）
 ok(/<b>发布时间<\/b>/.test(gridQC) && /<b>经验要求<\/b>/.test(gridQC) && /<b>接受应届生<\/b>/.test(gridQC), '结构化标签含 发布时间/经验要求/接受应届生');
 ok(/<b>学历要求<\/b>/.test(gridQC) && /<b>公司规模<\/b>/.test(gridQC) && /<b>工作模块<\/b>/.test(gridQC), '结构化标签含 学历要求/公司规模/工作模块');
 ok(/未提及/.test(gridQC), 'JD 未提及项显示「未提及」');
@@ -196,17 +256,34 @@ for (const j of allJobs) srcDist[j.expFrom || '(空)'] = (srcDist[j.expFrom || '
 ok(srcDist['JD任职要求'] > 0 && srcDist['发布信息'] > 0,
   `经验来源两类都有（JD ${srcDist['JD任职要求'] || 0} 条 / 发布 ${srcDist['发布信息'] || 0} 条）`);
 ok(!allJobs.some((j) => j.expFrom && !j.expRaw), '标了来源的岗位必有经验原文');
-ok(/(发布信息)/.test(gridQC), '发布信息来源的经验在卡片上标注「（发布信息）」');
+/* v2.0 P3：卡片上不再出现「（发布信息）」这类来源后缀 */
+ok(!/（发布信息）/.test(gridQC), '经验要求不再追加「（发布信息）」来源后缀');
 // 薪资必须是"月薪"口径：年薪（"万/年"）已在引擎里 ÷12，不能出现月薪 6 位数
 const salBad = allJobs.filter((j) => j.salaryMinNum != null && j.salaryMinNum >= 60000);
 ok(salBad.length === 0, `薪资月薪口径正确（未把年薪当月薪，异常 ${salBad.length} 条）`);
 const salYear = allJobs.filter((j) => /年/.test(String(j.salaryText || '')));
 ok(salYear.every((j) => j.salaryMinNum != null || /面议/.test(String(j.salaryText))),
   `年薪制岗位完成月薪换算（${salYear.length} 条）`);
-const modNames = ['规划', '招聘', '培训', '薪酬', '绩效', '员关', '行政', 'BP'];
-const modHit = modNames.filter((m) => new RegExp('>' + m + '<').test(gridQC));
-ok(modHit.length >= 4, `工作模块标签使用固定 8 类名（本页命中 ${modHit.length} 类：${modHit.join('、')}）`);
-ok(/class="modtag"/.test(js) && !/modtag hit/.test(js) && !/未提及的模块标签/.test(js), '工作模块只渲染被提及的模块（已移除未命中样式分支）');
+
+/* v2.0 P5：工作模块 = 从 JD 提炼的核心工作内容，取前 3、不带百分比、按权重排序 */
+const MODS = nodes._MODULES || [];
+const modTags = [...gridQC.matchAll(/<span class="modtag[^"]*"[^>]*>([^<]+)<\/span>/g)].map((m) => m[1]);
+ok(modTags.length > 0 && modTags.every((t) => MODS.includes(t) || t === '？'),
+  `工作模块标签均来自词表（本页 ${new Set(modTags).size} 种）`);
+ok(new Set(modTags).size >= 4, `本页出现 ≥4 种工作内容标签（${[...new Set(modTags)].sort().join('、')}）`);
+ok(!/<i class="pct">/.test(js) && !/modWeights/.test(js), '已移除百分比标记与占比算法（改为只取前 3 项）');
+ok(/function coreTop\(j, n\)/.test(js) && /slice\(0, n \|\| 3\)/.test(js), '核心工作内容「取前 3 项」逻辑存在');
+// 每张卡最多 3 个模块标签
+{
+  const cards = gridQC.split('<article class="card').slice(1);
+  const counts = cards.map((c) => (c.split('<span class="modtag').length - 1));
+  ok(counts.every((n) => n <= 3), `每张卡最多显示 3 个核心工作内容（最多 ${Math.max(...counts)}）`);
+  ok(counts.some((n) => n === 3), '存在正好显示 3 项核心工作内容的卡片');
+}
+ok(/class="modtag"/.test(js) && !/modtag hit/.test(js) && !/未提及的模块标签/.test(js), '工作模块只渲染被提及的项（已移除未命中样式分支）');
+ok(MODS.length >= 12 && MODS.every((m) => m.length >= 2 && m.length <= 5), `词表 ${MODS.length} 项，标签均为 2–5 字`);
+ok(MODS.includes('SSC') && MODS.includes('招聘') && MODS.includes('行政') && MODS.includes('HRBP'),
+  '词表覆盖求职方向：招聘 / 行政 / SSC / HRBP');
 
 // 交互测试：直接调用看板导出的事件处理器（fake 元素带 dataset）
 const fakeChip = (f) => ({ dataset: { f }, });
@@ -220,7 +297,7 @@ try {
   const before = (nodes.grid.innerHTML.match(/<article class="card/g) || []).length;
   nodes.chips._onclick(fakeChip('rest'));
   const n2 = (nodes.grid.innerHTML.match(/<article class="card/g) || []).length;
-  const exp = REC(P.platforms[1]).filter((j) => j.rest === '双休').length;
+  const exp = Math.min(PAGE, (P.platforms[1].jobs || []).filter((j) => j.rest === '双休').length);
   ok(n2 === exp && (n2 !== before || exp === before), `点击「双休」后筛选生效（${before} → ${n2}，预期 ${exp}）`);
   ok(/class="chip on" data-f="rest"/.test(nodes.chips.innerHTML), '选中态已回写到标签样式');
   const persists = JSON.parse(stored['wjl-kanban-v3'] || '{}');
@@ -232,7 +309,7 @@ try {
 try {
   nodes.chips._onclick(fakeChip('bp'));
   const n4 = (nodes.grid.innerHTML.match(/<article class="card/g) || []).length;
-  const expBp = REC(P.platforms[1]).filter((j) => j.bp).length;
+  const expBp = Math.min(PAGE, (P.platforms[1].jobs || []).filter((j) => j.bp).length);
   ok(n4 === expBp, `「BP＆管培生」筛选可用（命中 ${n4} 条，预期 ${expBp}）`);
   nodes.chips._onclick(fakeChip('bp'));
 } catch (e) { ok(false, 'BP＆管培生筛选 — ' + e.message); }
@@ -244,7 +321,127 @@ ok(tabEls.length === 2 && tabEls[0].dataset.key === 'zhilian' && tabEls[1].datas
 if (typeof nodes.tabs._onclick === 'function') {
   nodes.tabs._onclick({ dataset: { i: '0' } });
   ok(/class="on" data-key="zhilian"/.test(nodes.tabs.innerHTML), '可切回智联招聘');
-  ok((nodes.grid.innerHTML.match(/<article class="card/g) || []).length === rec0, '切回后智联仍只展示 75 分以上岗位');
+  ok((nodes.grid.innerHTML.match(/<article class="card/g) || []).length === rec0, '切回后智联仍是分批渲染（首屏 50 条），但可加载到全部岗位');
+}
+
+/* ================= v2.0 交互实测（真实调用，不查字符串）=================
+   覆盖四个用户可见的新功能：分批加载、岗位/公司搜索、刷新后提示、更新日志弹窗 */
+const cardN = () => (nodes.grid.innerHTML.match(/<article class="card/g) || []).length;
+const cardTitles = () => [...nodes.grid.innerHTML.matchAll(/<h2 class="t">(?:<a[^>]*>)?([^<]*)/g)].map((m) => m[1]);
+const cardComps = () => [...nodes.grid.innerHTML.matchAll(/<div class="co"><span>([^<]*)/g)].map((m) => m[1]);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/* 1) 分批加载：首屏 50 → 点「加载更多」变 100 */
+{
+  const b = cardN();
+  if (dyn.loadmore && typeof dyn.loadmore.onclick === 'function') {
+    dyn.loadmore.onclick();
+    const a = cardN();
+    ok(a === Math.min(PAGE * 2, (p0.jobs || []).length), `【v2.0】「加载更多」再渲染一批（${b} → ${a}）`);
+  } else ok(false, '【v2.0】「加载更多」按钮已绑定点击');
+}
+
+/* 2) 搜索：岗位名 */
+{
+  nodes.q.value = '人事';
+  nodes.q.oninput.call(nodes.q);
+  await sleep(350);
+  const n = cardN(), titles = cardTitles();
+  const exp = Math.min(PAGE, (p0.jobs || []).filter((j) => String(j.t).includes('人事')).length);
+  ok(n === exp && n > 0, `【v2.0】按岗位名搜索「人事」命中 ${n} 条（预期 ${exp}）`);
+  ok(titles.length === n && titles.every((t) => t.includes('人事')), '【v2.0】搜索结果里每张卡的岗位名都含关键词');
+}
+
+/* 3) 搜索：切到「公司」索引 */
+{
+  const coBtn = nodes.smode.querySelectorAll('.sm').filter((b) => b.getAttribute('data-m') === 'co')[0];
+  if (coBtn) {
+    coBtn.onclick();                       // 切换索引方式
+    ok(nodes.q.placeholder.indexOf('公司') >= 0, '【v2.0】切到公司模式后输入框提示同步变化');
+    nodes.q.value = '深圳';
+    nodes.q.oninput.call(nodes.q);
+    await sleep(350);
+    const comps = cardComps();
+    const exp = Math.min(PAGE, (p0.jobs || []).filter((j) => String(j.c).includes('深圳')).length);
+    ok(comps.length === exp && comps.length > 0, `【v2.0】按公司名搜索「深圳」命中 ${comps.length} 条（预期 ${exp}）`);
+    ok(comps.every((c) => c.includes('深圳')), '【v2.0】公司索引下每张卡的公司名都含关键词');
+    // 复位
+    nodes.q.value = '';
+    nodes.q.oninput.call(nodes.q);
+    await sleep(250);
+    const jobBtn = nodes.smode.querySelectorAll('.sm').filter((b) => b.getAttribute('data-m') === 'job')[0];
+    if (jobBtn) jobBtn.onclick();
+    await sleep(100);
+    ok(cardN() === Math.min(PAGE, (p0.jobs || []).length), '【v2.0】清空关键词后恢复全部岗位');
+  } else ok(false, '【v2.0】「公司」索引按钮可点击');
+}
+
+/* 4) 更新日志：每日首次弹出，点「我知道了」后当天不再弹 */
+{
+  ok(nodes.changelog.className === 'modal on', '【v2.0】当天首次进入会弹出更新日志');
+  const okBtn = dyn['changelog-ok'];
+  if (okBtn && typeof okBtn.onclick === 'function') {
+    okBtn.onclick();
+    const d = new Date();
+    const today = d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+    ok(stored['wjl-changelog-seen'] === today, '【v2.0】点「我知道了」记录当天日期');
+    ok(nodes.changelog.className === 'modal', '【v2.0】点击后弹窗关闭');
+    // 同一天再次进入：不应再弹
+    try { vm.runInContext(js, sandbox, { timeout: 10000 }); } catch (e) { ok(false, '二次进入执行 — ' + e.message); }
+    ok(nodes.changelog.className === 'modal', '【v2.0】同一天再次进入不再弹出更新日志');
+  } else ok(false, '【v2.0】「我知道了」按钮可点击');
+}
+
+/* 5) 刷新完成后的 5 秒提示：今日新增 X 个岗位，其中推荐 Y 个 */
+{
+  sessionStored['wjl-just-refreshed'] = '1';
+  try { vm.runInContext(js, sandbox, { timeout: 10000 }); } catch (e) { ok(false, '刷新后重载执行 — ' + e.message); }
+  // 独立复算期望值：以 builtAt 为基准向前 24 小时
+  const baseT = new Date(P.builtAt || P.generatedAt).getTime();
+  let expN = 0, expRec = 0;
+  for (const p of P.platforms) for (const j of p.jobs || []) {
+    const t = Date.parse(String(j.ts || '').replace(' ', 'T') + '+08:00');
+    if (!isFinite(t) || t > baseT || baseT - t > 86400000) continue;
+    expN++;
+    if (j.v !== '不推荐' && j.score >= 75) expRec++;
+  }
+  const txt = nodes.toast.innerHTML;
+  ok(/今日新增/.test(txt) && txt.indexOf(String(expN)) >= 0 && txt.indexOf(String(expRec)) >= 0,
+    `【v2.0】刷新后提示「今日新增 ${expN} 个岗位，其中推荐岗位 ${expRec} 个！」（实际「${txt.replace(/<[^>]+>/g, '')}」）`);
+  ok(nodes.toast.className === 'on', '【v2.0】提示条以 .on 显示（CSS 中 5 秒后自动隐藏）');
+  ok(sessionStored['wjl-just-refreshed'] == null, '【v2.0】提示只弹一次（标记用后即清）');
+}
+
+/* 6) 用合成数据验证「24 小时窗口」真的按小时算，而不是按自然日
+   本地数据是旧的（20 天前发布），上面那条只会得出 0/0 —— 0==0 骗得过 bug。
+   这里造 3 条岗位：1 小时前发布、2 小时前发布、3 天前发布。 */
+{
+  const bj = (d) => {
+    const t = new Date(d.getTime() + 480 * 60000);
+    const p2 = (n) => String(n).padStart(2, '0');
+    return `${t.getUTCFullYear()}-${p2(t.getUTCMonth() + 1)}-${p2(t.getUTCDate())} ${p2(t.getUTCHours())}:${p2(t.getUTCMinutes())}:${p2(t.getUTCSeconds())}`;
+  };
+  const now = Date.now();
+  const mkJob = (id, title, hoursAgo, score, v) => ({
+    id, t: title, c: '测试公司', s: '8-10千', city: '广州', dist: '', pub: bj(new Date(now - hoursAgo * 3600e3)).slice(0, 10),
+    ts: bj(new Date(now - hoursAgo * 3600e3)), exp: '经验不限', expRaw: '经验不限', expFrom: '发布信息',
+    deg: '大专', size: '100-499人', url: '', score, v, neg: [], pen: [], bon: [],
+    rest: '双休', hours: '', flex: '', mod: [], fresh: true, fr: '是', days: 0, jd: '【岗位职责】\n1、负责招聘渠道维护与简历筛选。', grad: '', bp: false,
+  });
+  nodes.payload.textContent = JSON.stringify({
+    generatedAt: new Date(now).toISOString(), builtAt: new Date(now).toISOString(),
+    profile: { name: '林小夕' },
+    platforms: [{ key: 'zhilian', label: '智联招聘', total: 3, recommended: 1, rejected: 2, jobs: [
+      mkJob('a', '1小时前发布的推荐岗', 1, 80, '推荐'),
+      mkJob('b', '2小时前发布的普通岗', 2, 40, '备选'),
+      mkJob('c', '3天前发布的岗位', 72, 70, '可考虑'),
+    ] }],
+  });
+  sessionStored['wjl-just-refreshed'] = '1';
+  try { vm.runInContext(js, sandbox, { timeout: 10000 }); } catch (e) { ok(false, '合成数据执行 — ' + e.message); }
+  const t2 = nodes.toast.innerHTML.replace(/<[^>]+>/g, '');
+  ok(/今日新增 2 个岗位/.test(t2), `【v2.0】24 小时窗口按小时判定：1 小时前与 2 小时前算新增、3 天前不算（实际「${t2}」）`);
+  ok(/其中推荐岗位 1 个/.test(t2), `【v2.0】「其中推荐岗位」只统计达线岗位（80 分算，40 分不算）（实际「${t2}」）`);
 }
 
 // 排序：薪资待遇
@@ -363,10 +560,14 @@ ok(/runs\/' \+ runId \+ '\/jobs/.test(js), '进度由云端步骤完成度实时
 
 /* ============ 版本号 ============ */
 {
-  const m = html.match(/(v\d+(?:\.\d+)*) ● \d{4}\/\d{1,2}\/\d{1,2} ——林小夕/);
+  const m = html.match(/(v\d+(?:\.\d+)*) ● (\d{4}\/\d{1,2}\/\d{1,2}) ——林小夕/);
   ok(!!m, '页脚版本行格式正确（版本号 ● 日期 ——笔名）');
-  ok(m && m[1] === 'v1.0', `版本号为 v1.0（实际「${m ? m[1] : '未匹配到'}」）`);
+  ok(m && m[1] === 'v2.0', `版本号为 v2.0（实际「${m ? m[1] : '未匹配到'}」）`);
+  /* 版本行的日期是「版本发布日」，写死为 2026/10/19，不随构建日变化 */
+  ok(m && m[2] === '2026/10/19', `版本行日期为发布日 2026/10/19（实际「${m ? m[2] : '未匹配到'}」）`);
   ok(!/!VERSION!|!STAMP!/.test(html), '模板占位符已全部替换（无残留 !VERSION!/!STAMP!）');
+  /* 与「上次刷新」区分：版本行固定，last-refresh 才随刷新变化 */
+  ok(!/function stamp\(\)/.test(js), '已移除用 JS 覆盖版本行日期的逻辑（否则会变回构建日）');
 }
 
 /* ============ 上次刷新时间（刷新按钮下方小字）============ */
@@ -424,9 +625,10 @@ ok(/<option value="score">推荐指数（高→低）<\/option>/.test(bodyHtml14
 /* ================= D. 本轮 UI 修改逐条验收 ================= */
 const bodyHtml = html.replace(/<script id="payload"[\s\S]*?<\/script>/, '');
 ok(!/id="stats"/.test(bodyHtml) && !/class="stats"/.test(bodyHtml) && !/renderStats/.test(js), '【P1】顶部统计卡区块已删除');
-ok(!/type="search"/.test(bodyHtml) && !/elQ/.test(js) && !/state\.q\b/.test(js), '【新增1】搜索功能已取消');
+ok(/type="search"/.test(bodyHtml) && /id="q"/.test(bodyHtml) && /elQ/.test(js), '【v2.0】搜索框已加回（输入框 + 事件绑定）');
+ok(/data-m="job"/.test(bodyHtml) && /data-m="co"/.test(bodyHtml), '【v2.0】搜索支持「岗位 / 公司」两种索引方式');
 ok(/<option value="sal">薪资待遇（高→低）<\/option>/.test(bodyHtml) && !/薪资（高→低）/.test(bodyHtml), '【P2】排序项已改为「薪资待遇」');
-ok(!/不推荐（被过滤）/.test(bodyHtml) && /(j\.v !== '不推荐'|isRec\(j\))/.test(js), '【P3】不推荐岗位不展示（含移除其筛选标签）');
+ok(/j\.v !== '不推荐'|isRec\(j\)/.test(js), '【P3】仍保留「推荐岗位」筛选标签（不推荐岗位现在也展示，但可一键筛掉）');
 ok(/data-key="'\+esc\(p\.key\)\+'"/.test(js) && /data-key=zhilian/.test(html) && /data-key="51job"/.test(html), '【P7】平台按钮带独立配色挂钩');
 ok(/--zl:#2563eb/.test(html) && /--qc:#dc2626/.test(html), '【P7】智联=蓝、前程=红 已定义');
 ok(/\.tabs\{display:flex;justify-content:center/.test(html) && /min-width:200px/.test(html), '【P7】平台按钮居中且放大');
@@ -438,16 +640,16 @@ ok(/--hot-soft|--mid:|--low:/.test(html), '【新增2】分数分级配色已定
 ok(/SEC_DUTY/.test(js) && /SEC_ASK/.test(js), '【p1】按「岗位职责 / 任职要求」分段后再判定模块');
 ok(!/j\.jd && j\.jd\.length > 20\) \? j\.jd : \(j\.t/.test(js) && !/MOD_RE/.test(js), '【p1】已弃用旧的「JD 否则回退标题」关键词匹配');
 ok(/modWhy/.test(js) && /依据 JD：/.test(js), '【p1】命中项附带 JD 原文依据（悬停可见）');
-ok(/function dutyItems\(j\)/.test(js) && /function modWeights\(j\)/.test(js), '【p1】按职责条目计算模块占比（dutyItems / modWeights）');
-ok(/Math\.round\(exact \/ 5\) \* 5/.test(js) && /合计 100%/.test(js), '【p1】占比按 5% 刻度分配且合计 100%');
-ok(/\bclass="pct"/.test(js) && /\.modtag \.pct\{/.test(html), '【p1】命中模块标签带百分比标记并已设样式');
+ok(/function dutyItems\(j\)/.test(js) && /function coreTop\(j, n\)/.test(js), '【p1】按职责条目提炼核心工作内容（dutyItems / coreTop）');
+ok(!/modWeights/.test(js) && !/Math\.round\(exact \/ 5\)/.test(js), '【v2.0】已移除 5% 刻度占比算法');
+ok(!/<i class="pct">/.test(js) && !/\.modtag \.pct\{/.test(html), '【v2.0】模块标签不再显示百分比（标记与样式均已移除）');
 ok(/SEC_BREAK/.test(js) && /小节标签/.test(js), '【p1】同一行内的小节标题也先断行再分段');
 {
   // 反例：学历要求里的「行政管理专业」不得判为行政模块；「职业规划」不得判为规划模块
   const cases = [
-    { jd: '【任职要求】1、行政管理、汉语言文学专业优先；2、本科及以上学历。【岗位职责】1、负责招聘渠道维护与简历筛选；2、组织面试安排。', want: ['招聘'], deny: ['行政', '规划', '薪酬'] },
-    { jd: '【任职要求】1、人力资源、工商管理专业；【岗位职责】1、负责薪酬核算与社保公积金申报；2、负责考勤统计。', want: ['薪酬'], deny: ['行政', '绩效'] },
-    { jd: '【任职要求】1、本科，职业规划清晰者优先。【岗位职责】1、负责员工入离职手续办理与劳动合同管理；2、组织员工活动与团队建设。', want: ['员关'], deny: ['规划'] },
+    { jd: '【任职要求】1、行政管理、汉语言文学专业优先；2、本科及以上学历。【岗位职责】1、负责招聘渠道维护与简历筛选；2、组织面试安排。', want: ['招聘'], deny: ['行政', '人力规划', '薪酬'] },
+    { jd: '【任职要求】1、人力资源、工商管理专业；【岗位职责】1、负责薪酬核算与社保公积金申报；2、负责考勤统计。', want: ['薪酬', '社保公积金', '考勤'], deny: ['行政', '绩效'] },
+    { jd: '【任职要求】1、本科，职业规划清晰者优先。【岗位职责】1、负责员工入离职手续办理与劳动合同管理；2、组织员工活动与团队建设。', want: ['员工关系', '企业文化'], deny: ['人力规划'] },
     { jd: '【岗位职责】1、负责公司行政后勤、办公用品采购、固定资产管理及会务接待。', want: ['行政'], deny: ['招聘', '薪酬'] },
   ];
   for (const c of cases) {
@@ -460,8 +662,8 @@ ok(/SEC_BREAK/.test(js) && /小节标签/.test(js), '【p1】同一行内的小�
   const noJd = nodes._modsOf({ jd: '', t: '薪酬绩效行政人事专员招聘培训' });
   ok(noJd.length === 0, `【p1】JD 缺失时不凭标题臆测模块（实际 ${noJd.join('/') || '无'}）`);
 
-  /* ---- 第6轮：模块占比（以 5% 为刻度，合计 100%，未提及不显示）---- */
-  ok(typeof nodes._dutyItems === 'function' && typeof nodes._modWeights === 'function', '【第6轮】占比计算函数已抽出（dutyItems / modWeights）');
+  /* ---- v2.0：核心工作内容取前 3、按提及次数排序、无百分比 ---- */
+  ok(typeof nodes._dutyItems === 'function' && typeof nodes._coreTop === 'function', '【v2.0】coreTop 函数已抽出可供实测');
   {
     const corpus = [
       { jd: '【岗位职责】\n1、负责招聘渠道维护与简历筛选；\n2、组织面试安排；\n3、负责薪酬核算与社保公积金申报；\n4、负责考勤统计。', t: '招聘薪酬专员' },
@@ -471,53 +673,43 @@ ok(/SEC_BREAK/.test(js) && /小节标签/.test(js), '【p1】同一行内的小�
       { jd: '【岗位职责】\n1、负责前台接待与来访登记；\n2、负责办公用品采购与固定资产管理；\n3、负责会议室安排与会务支持。', t: '前台行政' },
       { jd: '【岗位职责】\n1、负责考勤统计与薪资核算；', t: '薪酬专员' },
     ];
-    // p2：合计恒为 100%
-    let sumOk = true, detail = [];
+    /* 最多 3 项 */
+    let maxOk = true, d1 = [];
     for (const c of corpus) {
-      const w = nodes._modWeights(c);
-      const shown = nodes._MODULES.filter((m) => w[m] > 0);
-      const sum = shown.reduce((s, m) => s + w[m], 0);
-      if (shown.length && sum !== 100) { sumOk = false; detail.push(`${c.t}: ${shown.map((m) => m + w[m]).join('+')}=${sum}`); }
+      const top = nodes._coreTop(c, 3);
+      if (top.length > 3) { maxOk = false; d1.push(`${c.t}: ${top.length} 项`); }
     }
-    ok(sumOk, `【p2】模块占比合计恒为 100%${sumOk ? `（${corpus.length} 组实测全通过）` : ' → ' + detail.join(' | ')}`);
-    // p1：只显示被提及的模块（未提及的完全不出现在标签里）
-    let onlyHit = true, d2 = [];
+    ok(maxOk, `【v2.0】最多只取 3 项核心工作内容（${corpus.length} 组实测）${maxOk ? '' : ' → ' + d1.join(' | ')}`);
+
+    /* 按提及次数降序（排名分先后） */
+    let ordOk = true, d2 = [];
     for (const c of corpus) {
+      const top = nodes._coreTop(c, 3);
+      for (let i = 1; i < top.length; i++) if (top[i].n > top[i - 1].n) { ordOk = false; d2.push(c.t); }
+    }
+    ok(ordOk, '【v2.0】按 JD 提及次数从多到少排序（次数相同则按词表顺序）');
+
+    /* 只返回 JD 实际提及的项，绝不硬凑满 3 个 */
+    let onlyHit = true, d3 = [];
+    for (const c of corpus) {
+      const top = nodes._coreTop(c, 3).map((o) => o.m);
       const hit = nodes._modsOf(c);
-      const shown = nodes._MODULES.filter((m) => nodes._modWeights(c)[m] > 0);
-      if (hit.join('/') !== shown.join('/')) { onlyHit = false; d2.push(`${c.t}: 命中[${hit}] 显示[${shown}]`); }
+      if (!top.every((m) => hit.includes(m))) { onlyHit = false; d3.push(`${c.t}: 取[${top}] 实命中[${hit}]`); }
     }
-    ok(onlyHit, `【p1】只显示 JD 提及过的模块，未提及的不出现${onlyHit ? '' : ' → ' + d2.join(' | ')}`);
-    // 每项均为 5 的倍数且 ≥5%
-    let stepOk = true;
-    for (const c of corpus) for (const m of nodes._MODULES) { const v = nodes._modWeights(c)[m]; if (v !== 0 && (v % 5 !== 0 || v < 5)) stepOk = false; }
-    ok(stepOk, '【第6轮】占比以 5% 为刻度（被提及即 ≥5%）');
-    // HRBP 实测：招聘 2/5 条提及 → 40%，且未提及的规划/培训为 0
-    const hrbp = corpus[3];
-    ok(nodes._modWeight(hrbp, '招聘') === 40 && nodes._modWeight(hrbp, '规划') === 0 && nodes._modWeight(hrbp, '培训') === 0,
-      `【第6轮】HRBP 实测：招聘 ${nodes._modWeight(hrbp, '招聘')}%、规划 ${nodes._modWeight(hrbp, '规划')}%、培训 ${nodes._modWeight(hrbp, '培训')}%（期望 40 / 0 / 0）`);
-    // 行政专员实测：只有行政一个模块 → 100%
-    ok(nodes._modWeight(corpus[2], '行政') === 100, `【第6轮】行政专员实测：行政 ${nodes._modWeight(corpus[2], '行政')}%（期望 100%）`);
-    // 渲染层：页面上不得出现无百分比的模块标签
-    const modTags = (grid.match(/<span class="modtag[^"]*"[^>]*>[^<]*(?:<i class="pct">\d+%<\/i>)?<\/span>/g) || []);
-    const bare = modTags.filter((s) => !/<i class="pct">/.test(s));
-    ok(modTags.length > 0 && bare.length === 0, `【p1】页面上的模块标签全部带占比（共 ${modTags.length} 个，无占比 ${bare.length} 个）`);
-    // 渲染层：每张卡的占比合计为 100%
-    const cards = grid.match(/<article class="card[\s\S]*?<\/article>/g) || [];
-    let cardOk = 0, cardBad = [];
-    for (const card of cards) {
-      const ps = (card.match(/<i class="pct">(\d+)%<\/i>/g) || []).map((s) => Number(s.replace(/\D+/g, '')));
-      if (ps.length === 0) continue;
-      const s = ps.reduce((a, b) => a + b, 0);
-      if (s === 100) cardOk++; else cardBad.push(s);
-    }
-    ok(cardBad.length === 0, `【p2】每张卡的占比合计为 100%（校验 ${cardOk} 张卡）${cardBad.length ? ' → 异常 ' + cardBad.slice(0, 5).join('/') : ''}`);
-    // 渲染层：模块按固定顺序（规划→招聘→培训→薪酬→绩效→员关→行政→BP）排列
-    const firstCard = cards[0] || '';
-    const names = (firstCard.match(/<span class="modtag hit"[^>]*>([^<]*)<i class="pct">/g) || []).map((s) => (s.match(/>([^<]*)<i/) || [, ''])[1]);
-    const orderIdx = names.map((n) => nodes._MODULES.indexOf(n));
-    let ordered = orderIdx.every((v, i) => v >= 0 && (i === 0 || v > orderIdx[i - 1]));
-    ok(ordered, `【第6轮】模块按固定顺序排列（首卡：${names.join(' · ')}）`);
+    ok(onlyHit, `【v2.0】只返回 JD 实际提及的工作内容，不硬凑${onlyHit ? '' : ' → ' + d3.join(' | ')}`);
+
+    /* 行政专员只有行政一项 → 只显示 1 项，不补到 3 项 */
+    const adminTop = nodes._coreTop(corpus[2], 3).map((o) => o.m);
+    ok(adminTop.join('/') === '行政', `【v2.0】只命中 1 项时就只显示 1 项（实际「${adminTop.join('/') || '无'}」）`);
+
+    /* HRBP 样本：招聘提及最多，必须排进前 3 */
+    const hrbpTop = nodes._coreTop(corpus[3], 3);
+    ok(hrbpTop.length === 3 && hrbpTop[0].m === '招聘',
+      `【v2.0】HRBP 样本前 3 项：${hrbpTop.map((o) => o.m + o.n).join(' · ')}（招聘提及最多，应居首）`);
+
+    /* 渲染层：页面上的模块标签不带百分比，且每卡 ≤3 项 */
+    const rendered = [...grid.matchAll(/<span class="modtag[^"]*"[^>]*>([^<]*)<\/span>/g)].map((m) => m[1]);
+    ok(rendered.length > 0 && rendered.every((s) => !/%/.test(s)), `【v2.0】页面模块标签文字无百分比（共 ${rendered.length} 个）`);
   }
 }
 // 意见 p2：徽章行只留作息制度，不再重复判定文案
@@ -528,7 +720,9 @@ ok(/SEC_BREAK/.test(js) && /小节标签/.test(js), '【p1】同一行内的小�
   const verdicts = ['强烈推荐', '推荐', '可考虑', '备选', '不推荐'];
   const leaked = badgeTexts.flat().filter((t) => verdicts.includes(t));
   ok(leaked.length === 0, `【p2】徽章行不再出现判定文案（扫描 ${arts.length} 张卡，泄漏 ${leaked.length} 处）`);
-  ok(badgeTexts.every((ts) => ts.length >= 1 && /双休|单休|大小周|排班|作息未提及/.test(ts[0])), '【p2】徽章行首项为作息制度（双休/单休/大小周/排班轮休/作息未提及）');
+  ok(badgeTexts.every((ts) => ts.every((t) => ['双休', '单休', '大小周', '排班轮休', '弹性打卡'].includes(t) || /^\d{1,2}[:：]\d{2}/.test(t))),
+    '【v2.0】徽章行只含作息四种制度 / 工作时间 / 弹性打卡');
+  ok(!/作息未提及/.test(gridQC), '【v2.0】作息未提及时整条省略，卡片里不再出现「作息未提及」');
   ok(/if \(j\.hours\) extra\.push/.test(js) && /'是'\) extra\.push\('<span class="badge b3">弹性打卡/.test(js), '【p2】工作时间/弹性打卡徽章逻辑仍保留（有值即渲染）');
   ok(/<div class="sc"><b>/.test(gridQC) && /<i>推荐指数<\/i>/.test(gridQC), '【p2】不再渲染判定等级，改由右上角「推荐指数」单独表达');
 }

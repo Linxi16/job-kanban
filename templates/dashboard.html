@@ -136,10 +136,8 @@ select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
   display:inline-block;font-size:15px;font-weight:600;padding:4px 12px;margin:0 7px 5px 0;
   border-radius:6px;background:var(--good-soft);color:var(--good);white-space:nowrap;cursor:help;
 }
-.modtag .pct{
-  font-style:normal;font-weight:700;font-size:13px;margin-left:5px;
-  font-variant-numeric:tabular-nums;opacity:.72;
-}
+/* 无 JD 可判时显示"？"，与正常标签区分开，避免看起来像命中了某个模块 */
+.modtag.none{background:var(--low-soft);color:var(--ink3);cursor:default}
 
 .badge{
   display:inline-block;font-size:15px;font-weight:600;padding:4px 13px;border-radius:6px;
@@ -180,6 +178,43 @@ details[open] summary::before{transform:rotate(90deg)}
 }
 footer{margin-top:52px;padding-top:24px;border-top:1px solid var(--line);font-size:15px;color:var(--ink3);line-height:2}
 
+/* ---------- 搜索（岗位 / 公司 双模式）---------- */
+.search{display:flex;align-items:center;flex:0 0 auto;margin-left:auto}
+.smode{display:inline-flex;background:#eef1f6;border:1px solid var(--line);border-right:0;border-radius:9px 0 0 9px;overflow:hidden}
+.smode .sm{border:0;background:transparent;box-shadow:none;padding:10px 15px;font-size:15px;color:var(--ink2);border-radius:0;white-space:nowrap}
+.smode .sm.on{background:var(--accent);color:#fff}
+#q{font:inherit;font-size:15.5px;padding:10px 14px;border:1px solid var(--line);border-radius:0 9px 9px 0;background:#fff;color:var(--ink);outline:none;width:220px;min-width:0}
+#q:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+
+/* ---------- 分批渲染的「加载更多」---------- */
+.loadmore{
+  display:block;width:100%;margin-top:22px;padding:16px;font-size:16.5px;font-weight:600;
+  background:var(--card);border:1px dashed #c9d4e2;color:var(--accent);border-radius:var(--r);
+}
+.loadmore:hover{background:#f7fbff;border-color:var(--accent)}
+
+/* ---------- 刷新完成提示（5 秒后自动消失）---------- */
+#toast{
+  position:fixed;left:50%;bottom:34px;transform:translate(-50%,26px);
+  background:#111827;color:#fff;padding:16px 26px;border-radius:13px;
+  font-size:16.5px;font-weight:600;line-height:1.6;box-shadow:0 12px 34px rgba(0,0,0,.28);
+  opacity:0;pointer-events:none;transition:opacity .28s ease,transform .28s ease;
+  max-width:min(92vw,560px);text-align:center;z-index:60;
+}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+#toast em{font-style:normal;color:#fde047;font-weight:800}
+
+/* ---------- 更新日志弹窗 ---------- */
+.modal{position:fixed;inset:0;background:rgba(15,23,42,.5);display:none;align-items:center;justify-content:center;padding:20px;z-index:80}
+.modal.on{display:flex}
+.mbox{background:var(--card);border-radius:16px;padding:28px 26px 22px;max-width:600px;width:100%;max-height:86vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.mbox h3{margin:0 0 14px;font-size:22px;font-weight:750}
+.mbox .mver{font-size:13.5px;font-weight:500;color:var(--ink3);margin-left:8px}
+.mbox .mbody{font-size:15.5px;line-height:1.9;color:var(--ink2)}
+.mbox .mbody ul{margin:0;padding-left:22px}
+.mbox .mbody li{margin-bottom:7px}
+.mbox .mok{margin-top:22px;width:100%;padding:14px;font-size:16.5px;font-weight:650}
+
 @media(max-width:760px){
   body{font-size:17px}
   .wrap{padding:22px 16px 64px}
@@ -191,6 +226,12 @@ footer{margin-top:52px;padding-top:24px;border-top:1px solid var(--line);font-si
   .meta .mi b{flex-basis:88px}
   .t{font-size:18px}
   .sc b{font-size:30px}
+  /* 手机上搜索独占一行，模式切换与输入框平分宽度 */
+  .search{width:100%;margin-left:0;margin-top:4px}
+  .smode{flex:0 0 auto}
+  #q{flex:1 1 auto;width:auto}
+  #toast{left:16px;right:16px;bottom:20px;transform:translateY(26px);max-width:none}
+  #toast.on{transform:translateY(0)}
 }
 </style>
 </head>
@@ -225,14 +266,41 @@ footer{margin-top:52px;padding-top:24px;border-top:1px solid var(--line);font-si
     <option value="exp">经验门槛（低→高）</option>
   </select>
   <div class="chips" id="chips"></div>
+  <div class="search">
+    <div class="smode" id="smode">
+      <button type="button" class="sm on" data-m="job">岗位</button>
+      <button type="button" class="sm" data-m="co">公司</button>
+    </div>
+    <input id="q" type="search" placeholder="搜索岗位名称…" autocomplete="off" aria-label="搜索岗位或公司">
+  </div>
 </div>
 
 <div id="notice"></div>
 <div class="grid" id="grid"></div>
+<div id="more"></div>
 
 <footer>
   <div class="footline">当前平台：<b id="foot-plat">—</b>　——　点击岗位标题可跳转至岗位页面</div>
 </footer>
 
+</div>
+
+<div id="toast"></div>
+
+<div id="changelog" class="modal">
+  <div class="mbox">
+    <h3>2.0更新日志<span class="mver">v2.0 · 2026/10/19</span></h3>
+    <div class="mbody" id="changelog-body">
+      <ul>
+        <li>展示全部岗位：抓到的每一条都能看，不再只显示推荐岗位</li>
+        <li>新增搜索：可按「岗位」或「公司」检索</li>
+        <li>工作模块改为提炼 JD 里的 3 项核心工作内容，不再显示百分比</li>
+        <li>「接受应届生」改为明确的 是 / 否 / ？</li>
+        <li>作息标签只显示确有的双休／单休／大小周／排班轮休</li>
+        <li>刷新完成后提示当日新增岗位数</li>
+      </ul>
+    </div>
+    <button class="primary mok" id="changelog-ok">我知道了</button>
+  </div>
 </div>
 

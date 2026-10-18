@@ -5,7 +5,7 @@ var PLAT = DATA.platforms.filter(function(p){ return p.jobs && p.jobs.length; })
 
 /* ---------- 状态 ---------- */
 var LS = 'wjl-kanban-v3';
-var state = { tab: 0, sort: 'score', filters: {} };
+var state = { tab: 0, sort: 'score', filters: {}, q: '', mode: 'job' };
 try { var s = JSON.parse(localStorage.getItem(LS) || '{}'); if (s && typeof s === 'object') {
   if (typeof s.tab === 'number') state.tab = Math.min(s.tab, PLAT.length - 1);
   if (s.sort) state.sort = s.sort;
@@ -13,8 +13,15 @@ try { var s = JSON.parse(localStorage.getItem(LS) || '{}'); if (s && typeof s ==
 } } catch(e){}
 function save(){ try { localStorage.setItem(LS, JSON.stringify({tab:state.tab,sort:state.sort,filters:state.filters})); } catch(e){} }
 
-/* ---------- 工作模块 8 类：识别 JD 中的「实际工作内容」 ---------- */
-var MODULES = ['规划','招聘','培训','薪酬','绩效','员关','行政','BP'];
+/* ---------- 工作模块：从 JD 职责段提炼「实际工作内容」----------
+   v2.0 按候选人求职方向（人力专员 / HRBP / 行政 / 助理）细化词表：
+   每项 2–5 字，显示时只取「被提及次数最多的 3 项」，不再显示百分比。
+   与评分引擎的关系：这套词表**只用于展示**，不参与评分。评分引擎的
+   「多模块（≥3 类）+5」仍走它自己的 8 类口径——若把这里扩表同步给引擎，
+   绝大多数岗位都会凑满 3 类而白拿 +5，分数整体虚高、推荐排序失真。
+   拆分说明：「薪酬」不再吞掉社保/考勤，「员关」不再吞掉企业文化，
+   拆开才能看出这个人实际做哪块。 */
+var MODULES = ['招聘','培训','薪酬','社保公积金','考勤','绩效','员工关系','企业文化','行政','SSC','HRBP','人力规划','助理事务'];
 
 /* 只在「职责段」里找模块；这些标题之后的内容属于要求/待遇，一律剔除 */
 var SEC_DUTY = /岗\s*位\s*职\s*责|工\s*作\s*职\s*责|职\s*责\s*描\s*述|工\s*作\s*内\s*容|主\s*要\s*职\s*责|岗\s*位\s*内\s*容|职\s*位\s*描\s*述|你\s*将\s*负\s*责|岗\s*位\s*描\s*述/;
@@ -22,14 +29,19 @@ var SEC_ASK  = /任\s*职\s*要\s*求|任\s*职\s*资\s*格|岗\s*位\s*要\s*�
 
 /* 命中必须落在具体职责表述上，避免「行政管理专业」「职业规划」「渠道销售」这类误判 */
 var MOD_PAT = {
-  '规划': /(人力资源|人力|人事|组织|人才|编制)[^，。；\n]{0,8}(规划|盘点|梯队|体系搭建)|(规划|盘点|搭建|优化|完善)[^，。；\n]{0,8}(人力资源|人力|组织架构|人才梯队|人员编制|职级体系)|组织架构|人才梯队|(编制|人才)[^，。；\n]{0,6}(规划|盘点|梯队)|年度[^，。；\n]{0,4}(人力|人员|招聘|编制)[^，。；\n]{0,4}(规划|预算|计划)/,
   '招聘': /(招聘|招募|简历筛选|面试|校招|社招|雇主品牌|人才引进|人员配置|招聘渠道)/,
   '培训': /(培训|带教|讲师|学习发展|人才培养|赋能)/,
-  '薪酬': /(薪酬|薪资|工资|调薪|算薪|社保|公积金|五险一金|考勤|个税|发薪)/,
+  '薪酬': /(薪酬|薪资|工资|调薪|算薪|发薪|个税|人力成本|薪资核算|工资核算)/,
+  '社保公积金': /(社保|公积金|五险一金|社会保险|工伤|生育险|医保)/,
+  '考勤': /(考勤|排班|打卡|休假|请假|出勤|工时|加班统计)/,
   '绩效': /(绩效|考核|kpi|okr|目标管理|绩效管理)/i,
-  '员关': /(员工关系|劳动关系|入离职|入转调离|入职|离职|劳动合同|员工沟通|员工关怀|员工活动|企业文化|转正|调岗)/,
+  '员工关系': /(员工关系|劳动关系|入离职|入转调离|入职|离职|劳动合同|员工沟通|转正|调岗|续签)/,
+  '企业文化': /(企业文化|员工活动|员工关怀|团建|年会|员工大会|文体活动)/,
   '行政': /(行政|后勤|办公用品|固定资产|会务|接待|档案|证照|车辆|宿舍|食堂|办公环境|采购)/,
-  'BP': /(hrbp|hr\s*bp|业务伙伴|业务对接|支持业务|业务部门|bp)/i
+  'SSC': /(共享服务|共享中心|\bssc\b)/i,
+  'HRBP': /(hrbp|hr\s*bp|业务伙伴|业务对接|支持业务|业务部门|bp)/i,
+  '人力规划': /(人力资源|人力|人事|组织|人才|编制)[^，。；\n]{0,8}(规划|盘点|梯队|体系搭建)|(规划|盘点|搭建|优化|完善)[^，。；\n]{0,8}(人力资源|人力|组织架构|人才梯队|人员编制|职级体系)|组织架构|人才梯队|(编制|人才)[^，。；\n]{0,6}(规划|盘点|梯队)|年度[^，。；\n]{0,4}(人力|人员|招聘|编制)[^，。；\n]{0,4}(规划|预算|计划)/,
+  '助理事务': /(日程|会议安排|差旅|文件收发|文书|领导交办|上传下达|会议纪要|公文|督办)/
 };
 
 /* 小节标题可能的书写形式（用于在同一行内断开多个小节）
@@ -104,61 +116,27 @@ function dutyItems(j){
 }
 
 /* 单个模块的提及条数（组成工作内容的原始信号） */
-function modCount(j, m){
-  var items = dutyItems(j);
+function modCount(items, m){
   if (!items.length) return 0;
   var n = 0;
   for (var i = 0; i < items.length; i++) if (MOD_PAT[m].test(items[i])) n++;
   return n;
 }
 
-/* 全部模块的占比：以「各模块提及条数」为权重做归一化分配，合计恒为 100%。
-   只有被提及的模块参与分配（未提及的不显示）；每项取整到 5% 的刻度，
-   取整产生的零头补给「小数部分最大」的模块，保证加总仍为 100%。 */
-function modWeights(j){
+/* 取「被提及次数最多」的前 n 项核心工作内容（v2.0：不再算百分比、不再归一化）
+   · 排序：提及条数降序；条数相同则按词表顺序（越靠前越核心）
+   · 只返回实际被提及的项，不硬凑到 n 个（JD 没写就不编）
+   · 职责条目只切一次，避免每个模块重复切分（1000 条岗位下这是主要耗时点） */
+function coreTop(j, n){
   var items = dutyItems(j);
-  var out = {}, i, m;
-  for (i = 0; i < MODULES.length; i++) out[MODULES[i]] = 0;
-  if (!items.length) return out;
-  var cnt = [], total = 0;
+  if (!items.length) return [];
+  var arr = [], i;
   for (i = 0; i < MODULES.length; i++) {
-    var m0 = MODULES[i], n = modCount(j, m0);
-    cnt.push({ m: m0, n: n });
-    total += n;
+    var c = modCount(items, MODULES[i]);
+    if (c > 0) arr.push({ m: MODULES[i], n: c, i: i });
   }
-  if (!total) return out;
-  var live = cnt.filter(function(o){ return o.n > 0; });
-  var acc = 0, parts = [];
-  for (i = 0; i < live.length; i++) {
-    var exact = live[i].n / total * 100;
-    var v = Math.round(exact / 5) * 5;
-    if (v < 5) v = 5;                                  // 被提及至少要有一格
-    if (v > 100) v = 100;
-    parts.push({ m: live[i].m, v: v, frac: exact - v });
-    acc += v;
-  }
-  // 取整后的零头：差多少就从"被高估最多"的模块上挪，或补给"被低估最多"的模块
-  var diff = 100 - acc;
-  while (diff !== 0) {
-    var best = -1, bestVal = null, step = diff > 0 ? 5 : -5;
-    for (i = 0; i < parts.length; i++) {
-      var nv = parts[i].v + step;
-      if (nv < 5 || nv > 100) continue;
-      // 正向补：小数部分越大越优先；反向扣：被高估越多越优先
-      var score = step > 0 ? -parts[i].frac : parts[i].frac;
-      if (bestVal === null || score > bestVal) { bestVal = score; best = i; }
-    }
-    if (best < 0) break;
-    parts[best].v += step;
-    diff -= step;
-  }
-  for (i = 0; i < parts.length; i++) out[parts[i].m] = parts[i].v;
-  return out;
-}
-
-/* 兼容旧调用：单模块占比（取归一化后的结果） */
-function modWeight(j, m){
-  return modWeights(j)[m] || 0;
+  arr.sort(function(a, b){ return (b.n - a.n) || (a.i - b.i); });
+  return arr.slice(0, n || 3);
 }
 
 /* 模块命中的依据原文（给用户看"为什么算命中"）：取所在职责条目整句 */
@@ -189,10 +167,13 @@ function scoreCls(v){ return v >= 90 ? 'idx-hot' : (v >= 75 ? 'idx-mid' : 'idx-l
 /* ---------- 筛选条件（用户指定 4 项）---------- */
 var FILTERS = [
   { id:'rec',   label:'推荐岗位',   test:function(j){ return isRec(j); } },
-  { id:'fresh', label:'接受应届生', test:function(j){ return !!j.fresh; } },
+  { id:'fresh', label:'接受应届生', test:function(j){ return !!j.fresh || j.fr === '是'; } },
   { id:'rest',  label:'双休',       test:function(j){ return j.rest === '双休'; } },
   { id:'bp',    label:'BP＆管培生', test:function(j){ return !!j.bp; } }
 ];
+
+/* v2.0：只认这四种明确的作息制度；其余（含空值）一律不显示 */
+var REST_KNOWN = { '双休': 1, '单休': 1, '大小周': 1, '排班轮休': 1 };
 
 /* ---------- 薪资解析（取区间下限，单位 k/月） ---------- */
 function salaryK(j){
@@ -223,10 +204,13 @@ function expRank(e){
 var elTabs = document.getElementById('tabs'),
     elChips = document.getElementById('chips'),
     elGrid = document.getElementById('grid'),
+    elMore = document.getElementById('more'),
     elSort = document.getElementById('sort'),
     elStamp = document.getElementById('stamp'),
     elLastRefresh = document.getElementById('last-refresh'),
     elNotice = document.getElementById('notice'),
+    elQ = document.getElementById('q'),
+    elSmode = document.getElementById('smode'),
     elFootPlat = document.getElementById('foot-plat');
 
 function esc(s){
@@ -279,30 +263,24 @@ function jobCard(j){
 
   // 发布时间
   var pub = j.pub ? (j.pub + (typeof j.days === 'number' ? '（' + j.days + '天前）' : '')) : '';
-  // 经验要求：严格按"信息索引原则"显示——JD 任职要求段写了就显示 JD 的，
-  // JD 未提及才显示发布信息标签，并标明来源（用户要求：JD 未提及才参考发布信息）。
-  var expRaw = esc(j.expRaw || j.exp || '');
-  var exp = j.expFrom === 'JD任职要求' ? expRaw
-          : (expRaw ? expRaw + '（发布信息）' : '未标明');
-  // 是否接受应届生：引擎按 JD 判定，未判定时退回发布信息的"不限/无经验"
-  var fresh = j.fresh ? '接受应届生'
-            : (/不限|无需经验|无经验|不要求经验/.test(expRaw) ? '经验不限'
-            : (/1-3年|1年以上|3-5年|5-10年|10年以上|1年以下|应届/.test(expRaw) ? '需工作经验' : ''));
-  if (!fresh && j.grad && /接受2026届|2026\/2027届均可/.test(j.grad)) fresh = '接受2026届毕业生';
+  // 经验要求：v2.0 只显示原始标签本身，不再追加"（发布信息）"这类来源字样（用户要求）
+  var exp = j.expRaw || j.exp || '';
+  // 是否接受应届生：v2.0 显示三态 是 / 否 / ？（构建时按 JD 与平台标签判定，见 freshState）
+  var fresh = j.fr || '？';
   // 学历
   var deg = j.deg || '';
   // 公司规模
   var size = j.size || '';
-  // 工作模块：按 JD 职责条目算出占比（5% 刻度，合计 100%）
-  // 只显示 JD 中实际提及的模块，按固定模块顺序排列，悬停可见判定依据
-  var modW = modWeights(j);
-  var modHtml = MODULES.filter(function(m){ return modW[m] > 0; }).map(function(m){
-    var pct = modW[m];
-    var why = modWhy(j, m).join(' ／ ');
-    var tip = '依据 JD：' + why + '（占工作内容 ' + pct + '%，按职责条目提及比例，合计 100%）';
-    return '<span class="modtag"' + (tip ? ' title="' + esc(tip) + '"' : '') + '>'
-      + m + '<i class="pct">' + pct + '%</i></span>';
+  // 工作模块：v2.0 取 JD 职责里被提及最多的 3 项核心工作内容，只显示名称、不显示百分比
+  var tops = coreTop(j, 3);
+  var modHtml = tops.map(function(o){
+    var tip = '依据 JD：' + modWhy(j, o.m).join(' ／ ');
+    return '<span class="modtag" title="' + esc(tip) + '">' + esc(o.m) + '</span>';
   }).join('');
+  if (!modHtml) {
+    // 有 JD 但没命中词表 → 留空；连 JD 都没有 → 显示"？"，不编造
+    modHtml = (j.jd && j.jd.length > 20) ? '' : '<span class="modtag none">？</span>';
+  }
 
   var meta = '<div class="meta">'
     + mi('发布时间', pub)
@@ -310,7 +288,7 @@ function jobCard(j){
     + mi('接受应届生', fresh)
     + mi('学历要求', deg)
     + mi('公司规模', size)
-    + '<div class="mi wide"><b>工作模块</b><span>' + modHtml + '</span></div>'
+    + (modHtml ? '<div class="mi wide"><b>工作模块</b><span>' + modHtml + '</span></div>' : '')
     + '</div>';
 
   var body = '';
@@ -329,8 +307,9 @@ function jobCard(j){
   var details = body ? '<details><summary>评分依据 / 岗位描述</summary><div class="bd">' + body + '</div></details>' : '';
 
   // 附加信息条：只保留作息制度 + 工作时间 + 弹性打卡（评分已由右上角分数体现，不再重复）
+  // v2.0：作息只显示确有的四种制度；未提及就整条省略，不再显示"作息未提及"
   var extra = [];
-  extra.push('<span class="badge' + (j.rest === '双休' ? ' b3' : '') + '">' + esc(j.rest || '作息未提及') + '</span>');
+  if (REST_KNOWN[j.rest]) extra.push('<span class="badge' + (j.rest === '双休' ? ' b3' : '') + '">' + esc(j.rest) + '</span>');
   if (j.hours) extra.push('<span class="badge">' + esc(j.hours) + '</span>');
   if (j.flex === '是') extra.push('<span class="badge b3">弹性打卡</span>');
 
@@ -352,10 +331,47 @@ function hl(txt){
   return esc(txt).replace(HL_RE, '<mark>$1</mark>');
 }
 
+/* ---------- 搜索：岗位名 / 公司名 两种索引 ---------- */
+function sortName(){
+  var o = elSort && elSort.options && elSort.options[elSort.selectedIndex];
+  return o ? String(o.text).replace(/（.*?）/g, '') : '推荐指数';
+}
+function matchQ(j){
+  var q = String(state.q || '').trim().toLowerCase();
+  if (!q) return true;
+  if (state.mode === 'co') return String(j.c || '').toLowerCase().indexOf(q) >= 0;
+  return String(j.t || '').toLowerCase().indexOf(q) >= 0;
+}
+
+/* 分批渲染：一次只往页面塞 PAGE 条。
+   1000 条岗位若一次性渲染，会产生 4~5 万个节点，低端机会卡顿甚至白屏。
+   只渲染"看得见的这一批"，内存与滚动流畅度和只展示 200 条时基本一致。 */
+var PAGE = 50;
+var filtered = [];     // 当前筛选 + 搜索 + 排序后的完整结果
+var rendered = 0;      // 已渲染条数
+
+function moreHtml(){
+  if (rendered >= filtered.length) return '';
+  var left = filtered.length - rendered;
+  return '<button class="loadmore" id="loadmore">加载更多（还有 ' + left + ' 条）</button>';
+}
+
+function renderMore(){
+  if (!elMore) return;
+  elMore.innerHTML = moreHtml();
+  var b = document.getElementById('loadmore');
+  if (b) b.onclick = function(){
+    var next = Math.min(rendered + PAGE, filtered.length);
+    elGrid.insertAdjacentHTML('beforeend', filtered.slice(rendered, next).map(jobCard).join(''));
+    rendered = next;
+    renderMore();
+  };
+}
+
 function renderGrid(){
   var p = cur();
-  // 只展示评分达到「推荐岗位」门槛（75 分）的岗位；不推荐岗位与低分岗位都不进入网格
-  var jobs = (p.jobs || []).filter(isRec);
+  // v2.0：不再只展示推荐岗位——抓到的每一条都参与展示与检索
+  var jobs = (p.jobs || []).filter(matchQ);
   var active = Object.keys(state.filters);
   if (active.length) {
     jobs = jobs.filter(function(j){
@@ -375,16 +391,15 @@ function renderGrid(){
   } else if (state.sort === 'exp') {
     jobs.sort(function(a,b){ return expRank(a.exp) - expRank(b.exp) || (b.score - a.score); });
   }
-  var LIMIT = 300;
-  var shown = jobs.slice(0, LIMIT);
-  elGrid.innerHTML = shown.length
-    ? shown.map(jobCard).join('')
-    : '<div class="empty">当前平台没有达到 75 分的推荐岗位，试试取消筛选条件。</div>';
-  if (jobs.length > LIMIT) {
-    elNotice.innerHTML = '<div class="note">符合条件共 ' + jobs.length + ' 条，为保证流畅只展示前 ' + LIMIT + ' 条。请增加筛选条件以缩小范围。</div>';
-  } else {
-    elNotice.innerHTML = '';
-  }
+  filtered = jobs;
+  rendered = Math.min(PAGE, jobs.length);
+  elGrid.innerHTML = jobs.length
+    ? jobs.slice(0, rendered).map(jobCard).join('')
+    : '<div class="empty">' + (String(state.q || '').trim() ? '没有匹配的岗位，换个关键词试试。' : '当前筛选条件下没有岗位，试试取消筛选。') + '</div>';
+  renderMore();
+  elNotice.innerHTML = jobs.length
+    ? '<div class="note">当前平台共 ' + p.total + ' 条岗位，符合条件 <b>' + jobs.length + '</b> 条，已按「' + sortName() + '」排序。</div>'
+    : '';
 }
 
 function render(){
@@ -394,6 +409,26 @@ function render(){
 
 /* ---------- 事件 ---------- */
 elSort.onchange = function(){ state.sort = elSort.value; save(); renderGrid(); };
+
+/* 搜索：输入防抖 180ms，避免每敲一个字就重排 1000 条 */
+var qTimer = null;
+if (elQ) elQ.oninput = function(){
+  var v = this.value;
+  clearTimeout(qTimer);
+  qTimer = setTimeout(function(){ state.q = v; renderGrid(); }, 180);
+};
+/* 索引方式切换：岗位 / 公司 */
+function setMode(m){
+  state.mode = m;
+  if (elSmode) Array.prototype.forEach.call(elSmode.querySelectorAll('.sm'), function(b){
+    b.className = 'sm' + (b.getAttribute('data-m') === m ? ' on' : '');
+  });
+  if (elQ) elQ.placeholder = m === 'co' ? '搜索公司名称…' : '搜索岗位名称…';
+  renderGrid();
+}
+if (elSmode) Array.prototype.forEach.call(elSmode.querySelectorAll('.sm'), function(b){
+  b.onclick = function(){ setMode(b.getAttribute('data-m')); };
+});
 
 /* ---------- 云端更新：GitHub Actions 触发 ---------- */
 var GH_OWNER = '!GH_OWNER!', GH_REPO = '!GH_REPO!', GH_WF = '!GH_WF!', GH_WF_NAME = '!GH_WF_NAME!';
@@ -523,6 +558,8 @@ document.getElementById('refresh').onclick = function(){
           setProgress(100, '更新完成，正在重新载入…');
           var el = document.getElementById('refresh-progress');
           if (el) el.className = 'on done';
+          // 标记"刚刷新完"，供重载后弹出"今日新增 X 个岗位"
+          try { sessionStorage.setItem(JUST_KEY, '1'); } catch(e) {}
           setTimeout(function(){ location.reload(); }, 1800);
           return;
         }
@@ -578,12 +615,68 @@ function setQuota(n){
 }
 
 
-function stamp(){
-  var d = new Date(DATA.builtAt || DATA.generatedAt);
-  if (isNaN(d.getTime())) d = new Date();
-  var ds = d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate();
-  elStamp.textContent = '!VERSION! ● ' + ds + ' ——林小夕';
+/* ---------- 刷新完成提示 + 更新日志弹窗 ---------- */
+var JUST_KEY = 'wjl-just-refreshed';
+var LOG_KEY = 'wjl-changelog-seen';
+
+function showToast(html, ms){
+  var t = document.getElementById('toast');
+  if (!t) return;
+  t.innerHTML = html;
+  t.className = 'on';
+  setTimeout(function(){ t.className = ''; }, ms || 5000);
 }
+
+/** 取走"刚刷新完"标记（取完即清，只在刷新后的第一次载入提示一次） */
+function consumeJustRefreshed(){
+  try {
+    if (sessionStorage.getItem(JUST_KEY) !== '1') return false;
+    sessionStorage.removeItem(JUST_KEY);
+    return true;
+  } catch(e) { return false; }
+}
+
+/** 刷新时刻前 24 小时内发布的岗位数 / 其中推荐数 */
+function newIn24h(){
+  var base = new Date(DATA.builtAt || DATA.generatedAt).getTime();
+  if (!isFinite(base)) return { n: 0, rec: 0 };
+  var n = 0, rec = 0;
+  for (var i = 0; i < PLAT.length; i++) {
+    var jobs = PLAT[i].jobs || [];
+    for (var k = 0; k < jobs.length; k++) {
+      var j = jobs[k];
+      // ts 是发布信息的完整时间（北京时间），按 UTC+8 解析成绝对时刻
+      var t = Date.parse(String(j.ts || '').replace(' ', 'T') + '+08:00');
+      if (!isFinite(t) || t > base || base - t > 86400000) continue;
+      n++;
+      if (isRec(j)) rec++;
+    }
+  }
+  return { n: n, rec: rec };
+}
+
+function toastNewToday(){
+  var r = newIn24h();
+  showToast('今日新增 <em>' + r.n + '</em> 个岗位，其中推荐岗位 <em>' + r.rec + '</em> 个！', 5000);
+}
+
+/** 更新日志：每个自然日首次进入显示一次，点「我知道了」后当天不再弹 */
+function maybeChangelog(){
+  var el = document.getElementById('changelog');
+  if (!el) return;
+  var seen = '';
+  try { seen = localStorage.getItem(LOG_KEY) || ''; } catch(e) {}
+  if (seen === todayKey()) return;       // 今天已经看过
+  el.className = 'modal on';
+  var ok = document.getElementById('changelog-ok');
+  if (ok) ok.onclick = function(){
+    try { localStorage.setItem(LOG_KEY, todayKey()); } catch(e) {}
+    el.className = 'modal';
+  };
+}
+
+/* 版本行由构建时的 !STAMP! 直接写入 HTML（v2.0 ● 2026/10/19），
+   这里不再用 JS 覆盖——否则会变回"构建日"，与"版本发布日"的语义冲突。 */
 /** 上次刷新时间 → 「2026年9月30日5时26分」
     固定按北京时间（UTC+8，不随访客时区变化），不补零。
     offsetMin 显式传入是为了让测试可复现：不依赖运行机器的时区。
@@ -604,5 +697,12 @@ function lastRefresh(){
 document.title = '岗位看板';
 
 elSort.value = state.sort;
-render(); stamp(); lastRefresh();
+render(); lastRefresh();
+/* 刷新刚结束时：先弹"今日新增"，等提示消失再考虑更新日志，避免两者叠在一起 */
+if (consumeJustRefreshed()) {
+  toastNewToday();
+  setTimeout(maybeChangelog, 5400);
+} else {
+  maybeChangelog();
+}
 })();

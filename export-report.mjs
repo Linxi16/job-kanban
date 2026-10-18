@@ -8,7 +8,8 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA = path.join(__dirname, 'data');
-const OUT = path.join(__dirname, '岗位看板');
+const OUT = process.env.REPORT_DIR
+  || (fs.existsSync(path.join(__dirname, '..', '岗位看板')) ? path.join(__dirname, '..', '岗位看板') : path.join(__dirname, '岗位看板'));
 if (!fs.existsSync(OUT)) fs.mkdirSync(OUT, { recursive: true });
 
 const PLAT = [
