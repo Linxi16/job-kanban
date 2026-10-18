@@ -595,6 +595,11 @@ ok(/runs\/' \+ runId \+ '\/jobs/.test(js), '进度由云端步骤完成度实时
   const miss = want.filter((w) => cb.indexOf(w) < 0);
   ok(miss.length === 0, `更新日志五条内容齐全${miss.length ? ' → 缺少：' + miss.join('、') : ''}`);
   ok(/<ol>/.test(cb), '更新日志用有序列表（保留 1–5 的编号）');
+  /* 标题只保留主标题：不带「v2.0 · 2026/10/19」这类补充，且居中 */
+  const h3 = (html.match(/<div class="mbox">\s*<h3>([^<]*)<\/h3>/) || [, ''])[1];
+  ok(h3 === '2.0更新日志', `更新日志标题只有主标题（实际「${h3}」）`);
+  ok(!/class="mver"/.test(html) && !/v2\.0 · 2026\/10\/19/.test(html), '标题中的版本号与日期补充已移除');
+  ok(/\.mbox h3\{[^}]*text-align:center/.test(html), '更新日志标题居中显示');
 }
 
 /* ============ 上次刷新时间（刷新按钮下方小字）============ */
@@ -654,6 +659,11 @@ const bodyHtml = html.replace(/<script id="payload"[\s\S]*?<\/script>/, '');
 ok(!/id="stats"/.test(bodyHtml) && !/class="stats"/.test(bodyHtml) && !/renderStats/.test(js), '【P1】顶部统计卡区块已删除');
 ok(/type="search"/.test(bodyHtml) && /id="q"/.test(bodyHtml) && /elQ/.test(js), '【v2.0】搜索框已加回（输入框 + 事件绑定）');
 ok(/data-m="job"/.test(bodyHtml) && /data-m="co"/.test(bodyHtml), '【v2.0】搜索支持「岗位 / 公司」两种索引方式');
+/* 外观：选中态绿色、输入框加宽、整块不贴右边缘 */
+ok(/\.smode \.sm\.on\{background:#16a34a/.test(html), '【v2.0】搜索模式选中态为绿色（原为蓝色）');
+ok(/#q\{[^}]*width:320px/.test(html), '【v2.0】搜索框已加宽到 320px');
+ok(/\.search\{[^}]*margin-right:14px/.test(html), '【v2.0】搜索块右侧留白（整体左移，不贴边）');
+ok(!/\.smode \.sm\.on\{background:var\(--accent\)/.test(html), '【v2.0】蓝色选中态已移除');
 ok(/<option value="sal">薪资待遇（高→低）<\/option>/.test(bodyHtml) && !/薪资（高→低）/.test(bodyHtml), '【P2】排序项已改为「薪资待遇」');
 ok(/j\.v !== '不推荐'|isRec\(j\)/.test(js), '【P3】仍保留「推荐岗位」筛选标签（不推荐岗位现在也展示，但可一键筛掉）');
 ok(/data-key="'\+esc\(p\.key\)\+'"/.test(js) && /data-key=zhilian/.test(html) && /data-key="51job"/.test(html), '【P7】平台按钮带独立配色挂钩');

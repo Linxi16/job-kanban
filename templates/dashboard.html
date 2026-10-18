@@ -179,12 +179,14 @@ details[open] summary::before{transform:rotate(90deg)}
 footer{margin-top:52px;padding-top:24px;border-top:1px solid var(--line);font-size:15px;color:var(--ink3);line-height:2}
 
 /* ---------- 搜索（岗位 / 公司 双模式）---------- */
-.search{display:flex;align-items:center;flex:0 0 auto;margin-left:auto}
+/* margin-right 让整块不贴右边缘（视觉上左移一点）；#q 加宽后左侧也随之外扩 */
+.search{display:flex;align-items:center;flex:0 0 auto;margin-left:auto;margin-right:14px}
 .smode{display:inline-flex;background:#eef1f6;border:1px solid var(--line);border-right:0;border-radius:9px 0 0 9px;overflow:hidden}
 .smode .sm{border:0;background:transparent;box-shadow:none;padding:10px 15px;font-size:15px;color:var(--ink2);border-radius:0;white-space:nowrap}
-.smode .sm.on{background:var(--accent);color:#fff}
-#q{font:inherit;font-size:15.5px;padding:10px 14px;border:1px solid var(--line);border-radius:0 9px 9px 0;background:#fff;color:var(--ink);outline:none;width:220px;min-width:0}
-#q:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+/* 选中态用绿色，与「刷新数据」按钮同一色系（原来用蓝色 --accent） */
+.smode .sm.on{background:#16a34a;color:#fff}
+#q{font:inherit;font-size:15.5px;padding:10px 14px;border:1px solid var(--line);border-radius:0 9px 9px 0;background:#fff;color:var(--ink);outline:none;width:320px;min-width:0}
+#q:focus{border-color:#16a34a;box-shadow:0 0 0 3px #e8f7ee}
 
 /* ---------- 分批渲染的「加载更多」---------- */
 .loadmore{
@@ -208,8 +210,7 @@ footer{margin-top:52px;padding-top:24px;border-top:1px solid var(--line);font-si
 .modal{position:fixed;inset:0;background:rgba(15,23,42,.5);display:none;align-items:center;justify-content:center;padding:20px;z-index:80}
 .modal.on{display:flex}
 .mbox{background:var(--card);border-radius:16px;padding:28px 26px 22px;max-width:600px;width:100%;max-height:86vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)}
-.mbox h3{margin:0 0 14px;font-size:22px;font-weight:750}
-.mbox .mver{font-size:13.5px;font-weight:500;color:var(--ink3);margin-left:8px}
+.mbox h3{margin:0 0 14px;font-size:22px;font-weight:750;text-align:center}
 .mbox .mbody{font-size:15.5px;line-height:1.9;color:var(--ink2)}
 .mbox .mbody ol,.mbox .mbody ul{margin:0;padding-left:24px}
 .mbox .mbody li{margin-bottom:9px}
@@ -289,7 +290,7 @@ footer{margin-top:52px;padding-top:24px;border-top:1px solid var(--line);font-si
 
 <div id="changelog" class="modal">
   <div class="mbox">
-    <h3>2.0更新日志<span class="mver">v2.0 · 2026/10/19</span></h3>
+    <h3>2.0更新日志</h3>
     <div class="mbody" id="changelog-body">
       <ol>
         <li>现在看板不只是展示推荐岗位了</li>
