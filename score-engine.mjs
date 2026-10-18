@@ -20,15 +20,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // 数据目录可通过 DATA_DIR 指定（云端构建用），默认 <项目根>/data
 const DATA = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(__dirname, 'data');
 
-// ============ 简历画像（吴家良） ============
+// ============ 简历画像（只保留对外可用字段） ============
+/* 注意：这个对象会被写进 data/*.json，而 data/ 与看板产物都会提交到**公开仓库**。
+   因此这里**不保存**真实姓名、生日、学校、专业、现居、籍贯、实习单位等可定位到本人的信息，
+   只保留页面展示与求职方向所需的字段。姓名字段一律用笔名。
+   （看板页面本身并不读取 profile，它只是随数据一起留存的元信息。） */
 const PROFILE = {
-  name: '吴家良',
-  birth: '2003/08',
+  name: '林小夕',
   graduateYear: 2026,
-  school: '广东财经大学',
-  major: '人力资源管理（人才开发与管理方向）',
-  city: '广州市海珠区',
-  hometown: '广东省云浮市',
   targetRoles: ['HRBP', 'HR专员', '人力专员', '人力资源专员', '行政专员', '行政助理', '部门助理', '人力资源管培生', 'HR管培生'],
   internRoles: ['HRBP', 'HR', '招聘', '人力资源'],
   expectSalaryMinK: 6,

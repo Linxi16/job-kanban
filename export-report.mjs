@@ -53,9 +53,8 @@ for (const [key, label] of PLAT) {
 }
 
 // ---- Markdown 汇总 ----
-const SANITIZE = process.env.SANITIZE === '1';   // 云端发布版本：不输出可定位到本人的信息
 const now = new Date();
-lines.push('# 求职岗位筛选汇总 · ' + (SANITIZE ? '林小夕' : '吴家良'));
+lines.push('# 求职岗位筛选汇总 · 林小夕');
 lines.push('');
 lines.push(`> 生成时间：${now.toLocaleString('zh-CN')}　|　数据平台：智联招聘 · 前程无忧`);
 lines.push('');
@@ -63,16 +62,11 @@ lines.push('## 一、你的求职画像（用于匹配）');
 lines.push('');
 lines.push('| 项目 | 内容 |');
 lines.push('|---|---|');
-if (SANITIZE) {
-  lines.push('| 姓名 / 届别 | 林小夕 · **2026届** |');
-  lines.push('| 学历 | 本科 · 人力资源管理专业 |');
-  lines.push('| 实习经历 | 4段HR：HRBP实习生 · HR实习生 · 招聘助理 · 助教 |');
-} else {
-  lines.push('| 姓名 / 届别 | 吴家良 · **2026届**（2022.09–2026.07） |');
-  lines.push('| 学校专业 | 广东财经大学 · 人力资源管理（人才开发与管理方向）· 统招全日制本科 |');
-  lines.push('| 现居 / 籍贯 | 广州市海珠区 / 广东省云浮市 |');
-  lines.push('| 实习经历 | 4段HR：HRBP实习生（谷雨生物）· HR实习生（骆驼户外）· 招聘助理（欢创信息）· 助教（星火教育） |');
-}
+/* 战报会被提交进公开仓库，因此无论 SANITIZE 是否设置都只输出脱敏版画像：
+   不在源码里硬编码学校 / 现居 / 籍贯 / 实习单位等可定位到本人的信息。 */
+lines.push('| 姓名 / 届别 | 林小夕 · **2026届** |');
+lines.push('| 学历 | 本科 · 人力资源管理专业 |');
+lines.push('| 实习经历 | 4段HR：HRBP实习生 · HR实习生 · 招聘助理 · 助教 |');
 lines.push('| 核心能力 | 招聘全流程、人才画像、招聘SOP、员工关系、BP业务对接、多维表格看板、飞书/办公软件 |');
 lines.push('| 求职意向 | HRBP / 人力专员 / HR专员 / 招聘运营 / 行政专员 / 部门助理 / HR管培生 |');
 lines.push('| 期望薪资 | 6k+（7k+ 更优） |');

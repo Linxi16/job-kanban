@@ -785,7 +785,7 @@ ok(/minmax\(620px/.test(html), '【第11轮】卡片网格加宽（配合更大�
 const open = (html.match(/\{/g) || []).length, close = (html.match(/\}/g) || []).length;
 ok(Math.abs(open - close) <= 2, `花括号基本配平 — ${open} vs ${close}`);
 ok(!/https?:\/\/(?!www\.zhaopin|jobs\.51job|sou\.zhaopin|api\.github|github\.com)[a-z0-9.-]*\.(com|cn|net)/i.test(bodyHtml.replace(/<a href="[^"]*"/g, '')), '零外部依赖');
-ok(/charset="utf-8"/.test(html) && /吴家良|林小夕/.test(html), 'UTF-8 声明与中文正常');
+ok(/charset="utf-8"/.test(html) && /林小夕/.test(html), 'UTF-8 声明与中文正常（署名为笔名）');
 
 console.log(`\n合计：通过 ${pass} / 失败 ${fail}`);
 process.exit(fail ? 1 : 0);

@@ -33,7 +33,8 @@ try {
   console.log(`\n站点 HTTP ${r.status} | 大小 ${(html.length / 1024).toFixed(0)} KB`);
   console.log('含岗位看板标题:', html.includes('岗位看板'));
   console.log('含 75 分推荐卡:', html.includes('推荐指数'));
-  console.log('含个人信息:', /吴家良|广东财经大学|云浮/.test(html));
+  // 结构化判断：不再比对具体姓名/学校（那等于把个人信息写在工具里）
+  console.log('含个人信息字段:', /"(school|hometown|birth|major|city)":/.test(html));
 } catch (e) {
   console.log('\n站点访问失败:', e.message);
 }

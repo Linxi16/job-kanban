@@ -42,25 +42,23 @@ if (hasIdx) {
 
 /* ---------- 2. 脱敏 ---------- */
 /* 判定逻辑抽在 dist-sanitize.mjs，测试脚本共用同一份实现。
-   注意：只能查「个人画像 / 页面署名」区域——岗位数据里出现任何公司名都合法
-   （例：珠海星火教育、欢创信息本身就是招聘方），拿整页扫会误报。 */
-const { piiRegions, findLeaks, PII_RULES } = await import('./dist-sanitize.mjs');
-const { profile: profRegion, chrome: chromeRegion } = piiRegions(html);
-console.log(`（画像区 ${profRegion.length} 字 · 署名区 ${chromeRegion.length} 字；岗位数据不计入）\n`);
+   2026-10-19 起改为结构化校验（画像字段白名单 + 姓名必须为笔名 + 标题固定），
+   规则里不再保存任何真实取值——否则"检测名单"本身就成了一份个人信息清单。 */
+const { piiRegions, findLeaks, ALLOWED_PROFILE_KEYS, PEN_NAME, SITE_TITLE } = await import('./dist-sanitize.mjs');
+const { profile: profRegion, title: pageTitle, h1: pageH1 } = piiRegions(html);
+console.log(`（画像区 ${profRegion.length} 字；岗位数据不计入）\n`);
 const leaks = findLeaks(html);
-const leakMap = new Map(leaks.map((l) => [l.name, l]));
-for (const [name] of PII_RULES) {
-  const hit = leakMap.get(name);
-  ok(!hit, `已脱敏 · ${name}` + (hit ? `（仍出现于${hit.region}：${hit.hit}）` : ''));
-}
+ok(leaks.length === 0,
+  `发布版无个人信息泄漏${leaks.length ? '：' + leaks.map((l) => `${l.name}（${l.region}）`).join('、') : ''}`);
 if (P) {
   const prof = P.profile || {};
-  ok(prof.name === '林小夕', `画像署名已换成笔名（当前：${prof.name}）`);
-  ok(!('school' in prof), '画像不含学校字段');
-  ok(!('city' in prof), '画像不含现居字段');
-  ok(!('hometown' in prof), '画像不含籍贯字段');
-  ok(!('birth' in prof), '画像不含生日字段');
+  ok(prof.name === PEN_NAME, `画像署名已换成笔名（当前：${prof.name}）`);
+  const extra = Object.keys(prof).filter((k) => !ALLOWED_PROFILE_KEYS.includes(k));
+  ok(extra.length === 0,
+    `画像只保留允许字段（${Object.keys(prof).length} 个）${extra.length ? ' → 多余：' + extra.join('、') : ''}`);
 }
+ok(pageTitle === SITE_TITLE && pageH1 === SITE_TITLE,
+  `页面标题与大标题均为站名（title「${pageTitle}」· h1「${pageH1}」）`);
 
 /* ---------- 3. 按钮指向 ---------- */
 const owner = (html.match(/GH_OWNER\s*=\s*'([^']+)'/) || [])[1];
