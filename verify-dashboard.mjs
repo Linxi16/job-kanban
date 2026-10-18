@@ -411,6 +411,16 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   } else ok(false, '【v2.0】「我知道了」按钮可点击');
 }
 
+/* 4b) 旧缓存里的排序值 'exp' 必须被丢弃，并回落到推荐指数排序 */
+{
+  stored['wjl-kanban-v3'] = JSON.stringify({ sort: 'exp', tab: 0, filters: {} });
+  try { vm.runInContext(js, sandbox, { timeout: 10000 }); } catch (e) { ok(false, '旧排序值执行 — ' + e.message); }
+  ok(nodes.sort.value === 'score', `【v2.0】旧的「经验门槛」排序值已被丢弃（select 实际值「${nodes.sort.value}」）`);
+  const idx2 = [...nodes.grid.innerHTML.matchAll(/<div class="sc"><b>(\d+)<\/b><i>推荐指数<\/i>/g)].map((m) => Number(m[1]));
+  ok(idx2.length > 0 && idx2.every((v, i) => i === 0 || idx2[i - 1] >= v), '【v2.0】丢弃后回落到按推荐指数降序排列');
+  delete stored['wjl-kanban-v3'];
+}
+
 /* 5) 刷新完成后的 5 秒提示：今日新增 X 个岗位，其中推荐 Y 个 */
 {
   sessionStored['wjl-just-refreshed'] = '1';
@@ -670,6 +680,14 @@ ok(/当前平台：<b id="foot-plat">[\s\S]{0,20}<\/b>[\s\S]{0,20}点击岗位�
 ok(!/数据来源：智联招聘、前程无忧/.test(bodyHtml14), '【第14轮】旧「数据来源」行已删除');
 ok(nodes['foot-plat'] && nodes['foot-plat'].textContent === '智联招聘', '【第16轮】页脚当前平台名由脚本写入 — ' + (nodes['foot-plat'] || {}).textContent);
 ok(/<option value="score">推荐指数（高→低）<\/option>/.test(bodyHtml14), '【第15轮】排序项改为「推荐指数（高→低）」');
+/* v2.0：移除「经验门槛」排序 */
+{
+  const opts = [...bodyHtml14.matchAll(/<option value="([^"]+)">([^<]+)<\/option>/g)].map((m) => m[1]);
+  ok(!opts.includes('exp'), `排序项已移除「经验门槛」（当前：${opts.join(' / ')}）`);
+  ok(opts.length === 3 && opts.join(',') === 'score,pub,sal', `排序项恰好 3 个：${opts.join(' / ')}`);
+  ok(!/经验门槛（低→高）/.test(bodyHtml14), '页面上不再出现「经验门槛（低→高）」字样');
+  ok(!/function expRank/.test(js) && !/state\.sort === 'exp'/.test(js), '排序逻辑里已移除 expRank 与 exp 分支');
+}
 
 /* ================= D. 本轮 UI 修改逐条验收 ================= */
 const bodyHtml = html.replace(/<script id="payload"[\s\S]*?<\/script>/, '');

@@ -5,10 +5,13 @@ var PLAT = DATA.platforms.filter(function(p){ return p.jobs && p.jobs.length; })
 
 /* ---------- 状态 ---------- */
 var LS = 'wjl-kanban-v3';
+/* 排序方式白名单：v2.0 移除「经验门槛」排序后，必须丢弃旧缓存里的 'exp'，
+   否则下拉框没有对应选项，页面会停在"未排序"状态。 */
+var SORT_OK = ['score', 'pub', 'sal'];
 var state = { tab: 0, sort: 'score', filters: {}, q: '', mode: 'job' };
 try { var s = JSON.parse(localStorage.getItem(LS) || '{}'); if (s && typeof s === 'object') {
   if (typeof s.tab === 'number') state.tab = Math.min(s.tab, PLAT.length - 1);
-  if (s.sort) state.sort = s.sort;
+  if (s.sort && SORT_OK.indexOf(s.sort) >= 0) state.sort = s.sort;
   if (s.filters) state.filters = s.filters;
 } } catch(e){}
 function save(){ try { localStorage.setItem(LS, JSON.stringify({tab:state.tab,sort:state.sort,filters:state.filters})); } catch(e){} }
@@ -187,17 +190,6 @@ function salaryK(j){
   m = t.match(/(\d{4,6})/);
   if (m) return Number(m[1]) / 1000;
   return 0;
-}
-/* 经验门槛数值化：越小门槛越低 */
-function expRank(e){
-  var t = String(e || '');
-  if (/不限|无经验|应届/.test(t)) return 0;
-  if (/1年以下|1年以内/.test(t)) return 1;
-  if (/1-3年|1年以上/.test(t)) return 2;
-  if (/3-5年|3年以上/.test(t)) return 3;
-  if (/5-10年|5年以上/.test(t)) return 4;
-  if (/10年以上/.test(t)) return 5;
-  return 2;
 }
 
 /* ---------- 渲染 ---------- */
@@ -388,8 +380,9 @@ function renderGrid(){
     jobs.sort(function(a,b){ return String(b.pub||'').localeCompare(String(a.pub||'')) || (b.score - a.score); });
   } else if (state.sort === 'sal') {
     jobs.sort(function(a,b){ return salaryK(b) - salaryK(a) || (b.score - a.score); });
-  } else if (state.sort === 'exp') {
-    jobs.sort(function(a,b){ return expRank(a.exp) - expRank(b.exp) || (b.score - a.score); });
+  } else {
+    // 兜底：缓存的排序值已失效（例如旧版的 'exp'）时按推荐指数排，避免"不排序"的静止状态
+    jobs.sort(function(a,b){ return (b.score - a.score) || ((a.days==null?999:a.days) - (b.days==null?999:b.days)); });
   }
   filtered = jobs;
   rendered = Math.min(PAGE, jobs.length);
