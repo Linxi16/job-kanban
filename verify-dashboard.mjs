@@ -39,7 +39,12 @@ if (P) {
     console.log(`   ${p.label}: 收录 ${p.total} | 内嵌 ${jobs.length} | 有JD ${withJD}/${jobs.length} | 有作息 ${withRest}`);
     ok(jobs.every((x) => x.t && x.c), `${p.label} 所有岗位都有标题与公司名`);
     ok(jobs.length === p.total, `${p.label} v2.0 内嵌全部岗位（${jobs.length}/${p.total}）`);
-    ok(withJD === jobs.length, `${p.label} 全部岗位都有 JD（${withJD}/${jobs.length}）`);
+    /* 抓取端偶尔会漏 JD（引擎会保留岗位、不给"按 JD 加分"）。
+       不能要求 100%——线上一度是 499/500，本地旧数据恰好 500/500，写死就变成假红。 */
+    ok(withJD >= jobs.length - Math.max(1, Math.round(jobs.length * 0.02)),
+      `${p.label} 绝大多数岗位有 JD（${withJD}/${jobs.length}）`);
+    ok(jobs.filter((x) => !x.jd || x.jd.length <= 20).every((x) => x.t && x.c),
+      `${p.label} 无 JD 的岗位仍然展示（不因缺 JD 被丢弃）`);
     ok(jobs.every((x) => typeof x.score === 'number' && x.score >= 0), `${p.label} 全部岗位评分均已计算`);
     ok(jobs.every((x) => ['强烈推荐', '推荐', '可考虑', '备选', '不推荐'].includes(x.v)), `${p.label} 判定值合法（含「不推荐」）`);
     const bad = jobs.filter((x) => x.v === '不推荐' && (!x.neg || !x.neg.length));
@@ -247,7 +252,8 @@ if (typeof nodes.tabs._onclick === 'function') {
 // 结构化标签（在前面程无忧的卡片上核验，样本更全）
 ok(/<b>发布时间<\/b>/.test(gridQC) && /<b>经验要求<\/b>/.test(gridQC) && /<b>接受应届生<\/b>/.test(gridQC), '结构化标签含 发布时间/经验要求/接受应届生');
 ok(/<b>学历要求<\/b>/.test(gridQC) && /<b>公司规模<\/b>/.test(gridQC) && /<b>工作模块<\/b>/.test(gridQC), '结构化标签含 学历要求/公司规模/工作模块');
-ok(/未提及/.test(gridQC), 'JD 未提及项显示「未提及」');
+/* 「未提及」与「？」的渲染改由后面的合成数据测试覆盖：
+   真实数据里字段恰好都齐全时，这条会变成"看数据脸色"的弱断言。 */
 // 信息索引原则：经验要求必须标明来源（JD 任职要求 vs 发布信息）
 const allJobs = P.platforms.flatMap((p) => p.jobs);
 ok(allJobs.every((j) => 'expRaw' in j && 'expFrom' in j), '每条岗位都带 expRaw / expFrom（经验来源）');
@@ -428,13 +434,18 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     deg: '大专', size: '100-499人', url: '', score, v, neg: [], pen: [], bon: [],
     rest: '双休', hours: '', flex: '', mod: [], fresh: true, fr: '是', days: 0, jd: '【岗位职责】\n1、负责招聘渠道维护与简历筛选。', grad: '', bp: false,
   });
+  const jc = mkJob('c', '3天前发布且信息缺失的岗位', 72, 70, '可考虑');
+  jc.deg = ''; jc.size = ''; jc.city = '广州';      // 制造「未提及」
+  const jd0 = mkJob('d', '没有 JD 的岗位', 72, 30, '不推荐');
+  jd0.jd = '';                                       // 制造「工作模块 → ？」
   nodes.payload.textContent = JSON.stringify({
     generatedAt: new Date(now).toISOString(), builtAt: new Date(now).toISOString(),
     profile: { name: '林小夕' },
-    platforms: [{ key: 'zhilian', label: '智联招聘', total: 3, recommended: 1, rejected: 2, jobs: [
+    platforms: [{ key: 'zhilian', label: '智联招聘', total: 4, recommended: 1, rejected: 3, jobs: [
       mkJob('a', '1小时前发布的推荐岗', 1, 80, '推荐'),
       mkJob('b', '2小时前发布的普通岗', 2, 40, '备选'),
-      mkJob('c', '3天前发布的岗位', 72, 70, '可考虑'),
+      jc,
+      jd0,
     ] }],
   });
   sessionStored['wjl-just-refreshed'] = '1';
@@ -442,6 +453,11 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const t2 = nodes.toast.innerHTML.replace(/<[^>]+>/g, '');
   ok(/今日新增 2 个岗位/.test(t2), `【v2.0】24 小时窗口按小时判定：1 小时前与 2 小时前算新增、3 天前不算（实际「${t2}」）`);
   ok(/其中推荐岗位 1 个/.test(t2), `【v2.0】「其中推荐岗位」只统计达线岗位（80 分算，40 分不算）（实际「${t2}」）`);
+  // 字段缺失 → 显示「未提及」；没有 JD → 工作模块显示「？」
+  const g2 = nodes.grid.innerHTML;
+  ok(/<b>学历要求<\/b><span>未提及<\/span>/.test(g2), '【v2.0】学历缺失时显示「未提及」');
+  ok(/<b>公司规模<\/b><span>未提及<\/span>/.test(g2), '【v2.0】公司规模缺失时显示「未提及」');
+  ok(/<span class="modtag none">？<\/span>/.test(g2), '【v2.0】没有 JD 可判时工作模块显示「？」');
 }
 
 // 排序：薪资待遇

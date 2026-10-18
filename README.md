@@ -112,7 +112,7 @@ node cloud/fetch-all.mjs --plan
 | `score-engine.mjs` | 评分与判定引擎 |
 | `export-report.mjs` | 生成 CSV 与汇总报告 |
 | `build-dashboard.mjs` | 把数据打包成单文件看板 |
-| `verify-dashboard.mjs` | 本地完整版校验（204 项，含真实 DOM 桩交互测试） |
+| `verify-dashboard.mjs` | 本地完整版校验（208 项，含真实 DOM 桩交互测试） |
 | `verify-dist.mjs` | 云端发布版校验（结构 + 脱敏，26 项） |
 | `dist-sanitize.mjs` | 脱敏判定逻辑（校验脚本与反向测试共用） |
 | `test-verify-dist.mjs` | 脱敏校验的反向测试（注入 PII 必须被抓到） |
