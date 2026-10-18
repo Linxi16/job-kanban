@@ -586,6 +586,17 @@ ok(/runs\/' \+ runId \+ '\/jobs/.test(js), '进度由云端步骤完成度实时
   ok(!/function stamp\(\)/.test(js), '已移除用 JS 覆盖版本行日期的逻辑（否则会变回构建日）');
 }
 
+/* ============ 更新日志内容 ============ */
+{
+  const cb = (html.match(/<div class="mbody" id="changelog-body">([\s\S]*?)<\/div>/) || [, ''])[1];
+  const items = (cb.match(/<li>/g) || []).length;
+  ok(items === 5, `更新日志为 5 条（实际 ${items} 条）`);
+  const want = ['不只是展示推荐岗位', '双模式搜索', '界面 UI 小优化', '逻辑性调整', 'BUG 修复'];
+  const miss = want.filter((w) => cb.indexOf(w) < 0);
+  ok(miss.length === 0, `更新日志五条内容齐全${miss.length ? ' → 缺少：' + miss.join('、') : ''}`);
+  ok(/<ol>/.test(cb), '更新日志用有序列表（保留 1–5 的编号）');
+}
+
 /* ============ 上次刷新时间（刷新按钮下方小字）============ */
 {
   ok(/id="last-refresh"/.test(html), '刷新按钮下方有「上次刷新」小字容器');

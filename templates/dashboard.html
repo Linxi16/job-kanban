@@ -211,8 +211,8 @@ footer{margin-top:52px;padding-top:24px;border-top:1px solid var(--line);font-si
 .mbox h3{margin:0 0 14px;font-size:22px;font-weight:750}
 .mbox .mver{font-size:13.5px;font-weight:500;color:var(--ink3);margin-left:8px}
 .mbox .mbody{font-size:15.5px;line-height:1.9;color:var(--ink2)}
-.mbox .mbody ul{margin:0;padding-left:22px}
-.mbox .mbody li{margin-bottom:7px}
+.mbox .mbody ol,.mbox .mbody ul{margin:0;padding-left:24px}
+.mbox .mbody li{margin-bottom:9px}
 .mbox .mok{margin-top:22px;width:100%;padding:14px;font-size:16.5px;font-weight:650}
 
 @media(max-width:760px){
@@ -291,14 +291,13 @@ footer{margin-top:52px;padding-top:24px;border-top:1px solid var(--line);font-si
   <div class="mbox">
     <h3>2.0更新日志<span class="mver">v2.0 · 2026/10/19</span></h3>
     <div class="mbody" id="changelog-body">
-      <ul>
-        <li>展示全部岗位：抓到的每一条都能看，不再只显示推荐岗位</li>
-        <li>新增搜索：可按「岗位」或「公司」检索</li>
-        <li>工作模块改为提炼 JD 里的 3 项核心工作内容，不再显示百分比</li>
-        <li>「接受应届生」改为明确的 是 / 否 / ？</li>
-        <li>作息标签只显示确有的双休／单休／大小周／排班轮休</li>
-        <li>刷新完成后提示当日新增岗位数</li>
-      </ul>
+      <ol>
+        <li>现在看板不只是展示推荐岗位了</li>
+        <li>新增双模式搜索框功能</li>
+        <li>界面 UI 小优化</li>
+        <li>逻辑性调整</li>
+        <li>BUG 修复</li>
+      </ol>
     </div>
     <button class="primary mok" id="changelog-ok">我知道了</button>
   </div>
