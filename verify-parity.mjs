@@ -22,8 +22,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dir = path.dirname(fileURLToPath(import.meta.url));
-const KANBAN = process.env.KANBAN_DIR
-  || (fs.existsSync(path.join(__dir, '..', '岗位看板')) ? path.join(__dir, '..', '岗位看板') : path.join(__dir, '岗位看板'));
+/* 项目根 == 仓库根：脚本所在目录就是看板产物目录 */
+const KANBAN = process.env.KANBAN_DIR || __dir;
 const SRC_HTML = path.join(KANBAN, '看板.html');
 for (const f of [SRC_HTML, 'score-engine.mjs', 'data/scored-zhilian.json', 'data/scored-51job.json']) {
   if (!fs.existsSync(f)) { console.log(`❌ 缺少 ${f}，先跑 node build-dashboard.mjs`); process.exit(1); }

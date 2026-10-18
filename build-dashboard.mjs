@@ -18,15 +18,16 @@ const VERSION = 'v2.0';
 const RELEASE_DATE = '2026/10/19';
 const MAXJD = 1800;                 // 单条 JD 内嵌上限（控制页面体积）
 const __dir = path.dirname(fileURLToPath(import.meta.url));
-// 产物目录：env 优先；工作区把「岗位看板」放在上一层；仓库内（CI）就用仓库里的 岗位看板/
-const OUT_DIR = process.env.OUT_DIR
-  || (fs.existsSync(path.join(__dir, '..', '岗位看板')) ? path.join(__dir, '..', '岗位看板') : '岗位看板');
+/* 产物目录：env 优先，否则就是脚本所在目录本身。
+   「项目根 == 仓库根」——本地和云端用同一套相对路径，不再出现
+   「本地在根、云端在 岗位看板/ 子目录」的两套布局（那会导致推送清单对不上）。 */
+const OUT_DIR = process.env.OUT_DIR || __dir;
 const OUT_HTML = path.join(OUT_DIR, '看板.html');
 const OUT_JSON = path.join(OUT_DIR, '看板数据.json');
 
-const TEMPLATE = fs.readFileSync(path.join('templates', 'dashboard.html'), 'utf8');
-const PAGEJS = fs.readFileSync(path.join('templates', 'dashboard.js'), 'utf8');
-const dash = JSON.parse(fs.readFileSync(path.join('data', 'dashboard-data.json'), 'utf8'));
+const TEMPLATE = fs.readFileSync(path.join(__dir, 'templates', 'dashboard.html'), 'utf8');
+const PAGEJS = fs.readFileSync(path.join(__dir, 'templates', 'dashboard.js'), 'utf8');
+const dash = JSON.parse(fs.readFileSync(path.join(__dir, 'data', 'dashboard-data.json'), 'utf8'));
 
 /**
  * 届别提示：候选人是 2026 届，需要区分"明确接受 2026 届"与"只面向 2027 届"，

@@ -163,8 +163,9 @@ ok(codeList.length > 0 && dataList.length > 0, '清单应同时含 CODE 与 DATA
 const overlap = codeList.filter((f) => dataList.includes(f));
 ok(overlap.length === 0, `CODE 与 DATA 不应重叠：${overlap}`);
 ok(manifest.length === codeList.length + dataList.length, 'PUSH 应等于 CODE + DATA（新增文件时必须归入其中一类）');
-// 用通配而非枚举，保证以后新加的 data/*.json、岗位看板/*、dist/* 自动被覆盖
-const DATA_LIKE = /^(data\/|岗位看板\/|dist\/)/;
+// 用通配而非枚举，保证以后新加的数据/产物自动被覆盖。
+// 项目根 == 仓库根后，看板产物直接在根目录，只能按文件名识别。
+const DATA_LIKE = /^(data\/|dist\/|看板\.html$|看板数据\.json$|看板-脱敏版\.html$|.+推荐岗位\.csv$|筛选汇总报告\.md$)/;
 const misplaced = codeList.filter((p) => DATA_LIKE.test(p));
 ok(misplaced.length === 0, `数据/看板产物不得放进 CODE 清单（会被本地旧数据覆盖云端）：${misplaced}`);
 // 反向：DATA 里不应混进代码文件（否则代码永远推不上去）
@@ -175,21 +176,8 @@ const scriptInData = usedScripts.filter((p) => dataList.includes(p));
 ok(scriptInData.length === 0, `工作流脚本不应归入 DATA（本地默认不推）：${scriptInData}`);
 
 // 清单里的条目必须本地都在（否则 gh-upload 会因缺文件失败）
-/* 布局差异：本地把项目放在 岗位看板/ 子目录里（它自己就是仓库根），
-   云端 checkout 后则是「仓库根 + 岗位看板/ 子目录」。
-   因此产物类路径（岗位看板/看板.html 等）在本地会少一层前缀。
-   两种布局都认，避免把布局差异误报成「文件缺失」。 */
-const cwdName = process.cwd().split(/[\\/]/).filter(Boolean).pop();
-const NESTED_LOCAL = cwdName === '岗位看板' && !fs.existsSync('岗位看板');
-const resolveLocal = (p) => {
-  if (fs.existsSync(p)) return p;
-  if (NESTED_LOCAL && p.startsWith('岗位看板/')) {
-    const q = p.slice('岗位看板/'.length);
-    if (fs.existsSync(q)) return q;
-  }
-  return null;
-};
-const manifestMissing = manifest.filter((p) => !resolveLocal(p));
+// 项目根 == 仓库根后，本地与云端的相对路径已完全一致，不需要再做布局兼容。
+const manifestMissing = manifest.filter((p) => !fs.existsSync(p));
 ok(manifestMissing.length === 0, `推送清单里本地缺失的文件：${manifestMissing}`);
 // 垃圾文件不得进清单（云端 git add -A 会连带提交）
 const junk = manifest.filter((p) => /^\.tmp-|^probe-|spider\.mjs$|\.bak$|^归档\//.test(p));

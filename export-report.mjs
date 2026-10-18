@@ -8,8 +8,8 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA = path.join(__dirname, 'data');
-const OUT = process.env.REPORT_DIR
-  || (fs.existsSync(path.join(__dirname, '..', '岗位看板')) ? path.join(__dirname, '..', '岗位看板') : path.join(__dirname, '岗位看板'));
+/* 项目根 == 仓库根：默认就写到脚本所在目录，与本地布局一致 */
+const OUT = process.env.REPORT_DIR || __dirname;
 if (!fs.existsSync(OUT)) fs.mkdirSync(OUT, { recursive: true });
 
 const PLAT = [

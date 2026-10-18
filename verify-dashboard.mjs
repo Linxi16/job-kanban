@@ -12,8 +12,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dir = path.dirname(fileURLToPath(import.meta.url));
-const KANBAN = process.env.KANBAN_DIR
-  || (fs.existsSync(path.join(__dir, '..', '岗位看板')) ? path.join(__dir, '..', '岗位看板') : path.join(__dir, '岗位看板'));
+/* 项目根 == 仓库根：脚本所在目录就是看板产物目录 */
+const KANBAN = process.env.KANBAN_DIR || __dir;
 const FILE = path.join(KANBAN, '看板.html');
 const html = fs.readFileSync(FILE, 'utf8');
 let pass = 0, fail = 0;
