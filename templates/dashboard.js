@@ -298,12 +298,10 @@ function jobCard(j){
   }
   var details = body ? '<details><summary>评分依据 / 岗位描述</summary><div class="bd">' + body + '</div></details>' : '';
 
-  // 附加信息条：只保留作息制度 + 工作时间 + 弹性打卡（评分已由右上角分数体现，不再重复）
-  // v2.0：作息只显示确有的四种制度；未提及就整条省略，不再显示"作息未提及"
+  // 附加信息条：v2.0 起只显示四种明确作息制度（双休 / 单休 / 大小周 / 排班轮休）。
+  // 「工作时间」「弹性打卡」不再单独成标签；四种都没有时，整行不渲染（不留空行）。
   var extra = [];
   if (REST_KNOWN[j.rest]) extra.push('<span class="badge' + (j.rest === '双休' ? ' b3' : '') + '">' + esc(j.rest) + '</span>');
-  if (j.hours) extra.push('<span class="badge">' + esc(j.hours) + '</span>');
-  if (j.flex === '是') extra.push('<span class="badge b3">弹性打卡</span>');
 
   return '<article class="card ' + vc + '">'
     + '<div class="top">'
@@ -313,7 +311,7 @@ function jobCard(j){
     + '<div class="co"><span>' + esc(j.c) + '</span><em>' + loc + '</em></div>'
     + (j.s ? '<div class="sal">' + esc(j.s) + '</div>' : '')
     + meta
-    + '<div class="row" style="display:flex;gap:6px;flex-wrap:wrap">' + extra.join('') + '</div>'
+    + (extra.length ? '<div class="row" style="display:flex;gap:6px;flex-wrap:wrap">' + extra.join('') + '</div>' : '')
     + details
     + '</article>';
 }

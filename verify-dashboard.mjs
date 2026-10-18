@@ -455,7 +455,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     id, t: title, c: '测试公司', s: '8-10千', city: '广州', dist: '', pub: bj(new Date(now - hoursAgo * 3600e3)).slice(0, 10),
     ts: bj(new Date(now - hoursAgo * 3600e3)), exp: '经验不限', expRaw: '经验不限', expFrom: '发布信息',
     deg: '大专', size: '100-499人', url: '', score, v, neg: [], pen: [], bon: [],
-    rest: '双休', hours: '', flex: '', mod: [], fresh: true, fr: '是', days: 0, jd: '【岗位职责】\n1、负责招聘渠道维护与简历筛选。', grad: '', bp: false,
+    rest: '双休', mod: [], fresh: true, fr: '是', days: 0, jd: '【岗位职责】\n1、负责招聘渠道维护与简历筛选。', grad: '', bp: false,
   });
   const jc = mkJob('c', '3天前发布且信息缺失的岗位', 72, 70, '可考虑');
   jc.deg = ''; jc.size = ''; jc.city = '广州';      // 制造「未提及」
@@ -792,10 +792,16 @@ ok(/SEC_BREAK/.test(js) && /小节标签/.test(js), '【p1】同一行内的小�
   const verdicts = ['强烈推荐', '推荐', '可考虑', '备选', '不推荐'];
   const leaked = badgeTexts.flat().filter((t) => verdicts.includes(t));
   ok(leaked.length === 0, `【p2】徽章行不再出现判定文案（扫描 ${arts.length} 张卡，泄漏 ${leaked.length} 处）`);
-  ok(badgeTexts.every((ts) => ts.every((t) => ['双休', '单休', '大小周', '排班轮休', '弹性打卡'].includes(t) || /^\d{1,2}[:：]\d{2}/.test(t))),
-    '【v2.0】徽章行只含作息四种制度 / 工作时间 / 弹性打卡');
+  ok(badgeTexts.flat().length > 0 && badgeTexts.flat().every((t) => ['双休', '单休', '大小周', '排班轮休'].includes(t)),
+    `【v2.0】徽章只含四种作息制度（共 ${badgeTexts.flat().length} 个：${[...new Set(badgeTexts.flat())].join('/')}）`);
+  ok(badgeTexts.some((ts) => ts.length === 0), `【v2.0】没有作息标签的卡片不渲染该行（${badgeTexts.filter((t) => !t.length).length}/${arts.length} 张）`);
   ok(!/作息未提及/.test(gridQC), '【v2.0】作息未提及时整条省略，卡片里不再出现「作息未提及」');
-  ok(/if \(j\.hours\) extra\.push/.test(js) && /'是'\) extra\.push\('<span class="badge b3">弹性打卡/.test(js), '【p2】工作时间/弹性打卡徽章逻辑仍保留（有值即渲染）');
+  /* v2.0：工作时间与弹性打卡不再作为标签出现
+     注意 JD 正文高亮会命中「弹性打卡」字样，所以只查 badge 元素，不能查整段 HTML */
+  ok(!/<span class="badge[^"]*">弹性打卡/.test(gridQC), '卡片上不再有「弹性打卡」标签');
+  ok(!/<span class="badge">\s*\d{1,2}[:：]\d{2}/.test(gridQC), '卡片上不再有「工作时间」标签');
+  ok(/\(extra\.length \?/.test(js), '空数组时整行不渲染（不会留下空行）');
+  ok(!/\bj\.hours\b/.test(js) && !/\bj\.flex\b/.test(js), '脚本不再读取 hours / flex 字段');
   ok(/<div class="sc"><b>/.test(gridQC) && /<i>推荐指数<\/i>/.test(gridQC), '【p2】不再渲染判定等级，改由右上角「推荐指数」单独表达');
 }
 // 意见 3：字体优化 + 字号增大（第 11 轮再次整体放大）

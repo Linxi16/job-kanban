@@ -84,7 +84,7 @@ function packJob(x) {
     deg: x.degree || '', size: x.companySize || '', url: x.url || '',
     score: x.score, v: x.verdict,
     neg: (x.negatives || []).slice(0, 4), pen: x.penalties || [], bon: x.bonuses || [],
-    rest: (x.schedule || {}).rest || '', hours: (x.schedule || {}).hours || '', flex: (x.schedule || {}).flexible || '',
+    rest: (x.schedule || {}).rest || '',
     mod: (x.modules || []).slice(0, 8),
     fresh: !!x.freshOk, fr: freshState(x), days: x.daysAgo,
     jd: (x.jobDescFull || x.jd || '').slice(0, MAXJD),
