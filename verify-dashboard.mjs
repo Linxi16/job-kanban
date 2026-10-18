@@ -137,7 +137,7 @@ function makeEl(tag) {
 }
 const nodes = {};
 const IDS = ['tabs', 'chips', 'grid', 'more', 'sort', 'stamp', 'notice', 'foot-plat', 'refresh',
-  'q', 'smode', 'toast', 'changelog', 'last-refresh', 'refresh-progress', 'pfill', 'pnote'];
+  'q', 'smode', 'toast', 'changelog', 'changelog-open', 'last-refresh', 'refresh-progress', 'pfill', 'pnote'];
 for (const id of IDS) nodes[id] = makeEl('div');
 // payload 脚本块：把原始 JSON 文本喂给看板脚本
 nodes.payload = makeEl('script');
@@ -395,6 +395,19 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     // 同一天再次进入：不应再弹
     try { vm.runInContext(js, sandbox, { timeout: 10000 }); } catch (e) { ok(false, '二次进入执行 — ' + e.message); }
     ok(nodes.changelog.className === 'modal', '【v2.0】同一天再次进入不再弹出更新日志');
+
+    /* 版本行下方的「更新日志」小按钮：可随时重新打开 */
+    const openBtn = nodes['changelog-open'];
+    if (openBtn && typeof openBtn.onclick === 'function') {
+      openBtn.onclick();
+      ok(nodes.changelog.className === 'modal on', '【v2.0】点「更新日志」小按钮可重新打开弹窗');
+      // 当天已看过后手动打开的弹窗，也必须能关掉（处理函数无条件绑定）
+      const ok2 = dyn['changelog-ok'];
+      if (ok2 && typeof ok2.onclick === 'function') {
+        ok2.onclick();
+        ok(nodes.changelog.className === 'modal', '【v2.0】当天已看过后，手动打开的弹窗仍能关闭');
+      } else ok(false, '【v2.0】当天已看过后「我知道了」仍绑定事件');
+    } else ok(false, '【v2.0】「更新日志」按钮绑定了点击事件');
   } else ok(false, '【v2.0】「我知道了」按钮可点击');
 }
 
@@ -600,6 +613,10 @@ ok(/runs\/' \+ runId \+ '\/jobs/.test(js), '进度由云端步骤完成度实时
   ok(h3 === '2.0更新日志', `更新日志标题只有主标题（实际「${h3}」）`);
   ok(!/class="mver"/.test(html) && !/v2\.0 · 2026\/10\/19/.test(html), '标题中的版本号与日期补充已移除');
   ok(/\.mbox h3\{[^}]*text-align:center/.test(html), '更新日志标题居中显示');
+  /* 版本行下方的「更新日志」按钮 */
+  ok(/class="stamp-wrap"[\s\S]{0,240}id="stamp"[\s\S]{0,240}id="changelog-open"[\s\S]{0,40}>更新日志</.test(html),
+    '版本行下方有「更新日志」小按钮');
+  ok(/\.linkbtn\{[^}]*font-size:13\.5px/.test(html), '「更新日志」按钮为小号文字样式');
 }
 
 /* ============ 上次刷新时间（刷新按钮下方小字）============ */

@@ -42,6 +42,13 @@ h1.title-main{
 .hrow{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-top:16px}
 .stamp{font-size:15.5px;color:var(--ink3)}
 #last-refresh{margin-top:6px;font-size:13.5px;color:var(--ink3);text-align:right;font-variant-numeric:tabular-nums}
+/* 版本行下方的小按钮：随时重新打开更新日志 */
+.stamp-wrap{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+.linkbtn{
+  border:0;background:transparent;box-shadow:none;padding:0;margin:0;
+  font-size:13.5px;color:var(--ink3);text-decoration:underline;text-underline-offset:3px;cursor:pointer;
+}
+.linkbtn:hover{background:transparent;border:0;color:#16a34a}
 button{
   font:inherit;font-size:16px;cursor:pointer;border:1px solid var(--line);background:var(--card);
   color:var(--ink);padding:11px 22px;border-radius:var(--r2);transition:.16s;box-shadow:var(--sh);
@@ -242,7 +249,10 @@ footer{margin-top:52px;padding-top:24px;border-top:1px solid var(--line);font-si
 <header>
   <h1 class="title-main">岗位看板</h1>
   <div class="hrow">
-    <span class="stamp" id="stamp">!STAMP!</span>
+    <div class="stamp-wrap">
+      <span class="stamp" id="stamp">!STAMP!</span>
+      <button type="button" class="linkbtn" id="changelog-open">更新日志</button>
+    </div>
     <div>
       <button class="primary" id="refresh">刷新数据</button>
       <div id="last-refresh"></div>

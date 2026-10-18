@@ -660,19 +660,29 @@ function toastNewToday(){
   showToast('今日新增 <em>' + r.n + '</em> 个岗位，其中推荐岗位 <em>' + r.rec + '</em> 个！', 5000);
 }
 
-/** 更新日志：每个自然日首次进入显示一次，点「我知道了」后当天不再弹 */
-function maybeChangelog(){
+/** 更新日志：点「我知道了」记下当天日期；版本行下方的小按钮可随时重新打开。
+    注意：处理函数必须**无条件绑定**——否则当天已看过时手动打开弹窗会关不掉。 */
+function showChangelog(){
   var el = document.getElementById('changelog');
-  if (!el) return;
+  if (el) el.className = 'modal on';
+}
+function closeChangelog(){
+  var el = document.getElementById('changelog');
+  try { localStorage.setItem(LOG_KEY, todayKey()); } catch(e) {}
+  if (el) el.className = 'modal';
+}
+function bindChangelog(){
+  var ok = document.getElementById('changelog-ok');
+  if (ok) ok.onclick = closeChangelog;
+  var open = document.getElementById('changelog-open');
+  if (open) open.onclick = showChangelog;
+}
+/** 每个自然日首次进入自动弹一次 */
+function maybeChangelog(){
   var seen = '';
   try { seen = localStorage.getItem(LOG_KEY) || ''; } catch(e) {}
   if (seen === todayKey()) return;       // 今天已经看过
-  el.className = 'modal on';
-  var ok = document.getElementById('changelog-ok');
-  if (ok) ok.onclick = function(){
-    try { localStorage.setItem(LOG_KEY, todayKey()); } catch(e) {}
-    el.className = 'modal';
-  };
+  showChangelog();
 }
 
 /* 版本行由构建时的 !STAMP! 直接写入 HTML（v2.0 ● 2026/10/19），
@@ -698,6 +708,7 @@ document.title = '岗位看板';
 
 elSort.value = state.sort;
 render(); lastRefresh();
+bindChangelog();
 /* 刷新刚结束时：先弹"今日新增"，等提示消失再考虑更新日志，避免两者叠在一起 */
 if (consumeJustRefreshed()) {
   toastNewToday();
