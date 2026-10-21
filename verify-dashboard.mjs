@@ -229,6 +229,9 @@ ok(idxs.length === cardCount, `每张卡的分数都带「推荐指数」标签�
 ok(idxs.every((v) => v >= 0 && v <= 100), `展示的评分均为 0–100（${Math.min(...idxs)}–${Math.max(...idxs)}）`);
 ok(idxs.every((v, i) => i === 0 || idxs[i - 1] >= v), '默认按评分降序排列');
 ok(idxs.length > 0 && idxs[0] === Math.max(...(p0.jobs || []).map((j) => j.score)), `榜首即本平台最高评分（${idxs[0]}）`);
+// 引擎侧上限：文档写「总分上限 100」，若引擎漏截断，看板显示 100 但数据里是 103，两处口径就不一致了
+const rawMax = Math.max(...P.platforms.flatMap((p) => (p.jobs || []).map((j) => j.score)));
+ok(rawMax <= 100, `引擎评分不超过 100（数据里最高 ${rawMax}）`);
 ok(!/<i>综合推荐指数<\/i>/.test(html) && /<i>推荐指数<\/i>/.test(html), '右上角标题改为「推荐指数」（数值仍为引擎原始评分）');
 ok(/--hot:#dc2626/.test(html), '90+ 红色配色变量已定义');
 const hotCount = (grid.match(/card idx-hot/g) || []).length;

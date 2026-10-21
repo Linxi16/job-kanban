@@ -1176,7 +1176,10 @@ for (const [key, label, loader] of [['zhilian', '智联招聘', loadZhilian], ['
   scored.sort((a, b) => (b.score - b.negatives.length * 25) - (a.score - a.negatives.length * 25));
   // 重新计算最终判定（公司级惩罚会改变结果；分数本身已在 scoreJob 内扣过过滤项）
   for (const x of scored) {
-    x.score = Math.max(0, Math.round(x.score));
+    // 上限 100：文档（README/筛选汇总报告）写的是「总分上限 100」，看板展示也会截到 100。
+    // 只截下限会让数据里出现 103、107 这种分，看板显示 100 而排序按原始分，于是
+    // 「榜首＝本平台最高分」这条断言在云端新数据上失败（本地最高 90 侥幸没暴露）。
+    x.score = Math.max(0, Math.min(100, Math.round(x.score)));
     x.verdict = verdictOf(x.score, x.penalties, x.negatives);
   }
   if (spamCo) console.log(`  ⚠ 识别到 ${spamCo} 家招聘工厂/BPO公司`);
