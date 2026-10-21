@@ -18,10 +18,16 @@ zhilian-spider.mjs
 *.bak
 *.corrupt.bak
 
-# 云端每跑一次就新增的时间戳快照，不入库（只在本地产出）
-归档/
+# 归档：仓库里只保留最新 3 份「看板数据」快照（云端工作流每次运行裁剪到 3 份）。
+# HTML 快照体积大且与根目录 看板.html 内容重复，不入库。
+归档/看板-*.html
+归档/看板.html
 
-# 抓取中间产物（本地调试用；分片文件由云端 artifact 传递，无需入库）
+# 抓取中间产物：每次刷新都会重新抓取/重算，合计 20MB+，不入库。
+# （云端运行期间照常生成，跑完即弃；仓库只保留最终的看板与战报）
+data/
+
+# 旧版遗留的零散调试文件（已由上面的 data/ 覆盖，保留以防误加）
 data/fetch-report-*.json
 data/zhilian-detail.json
 data/51job-fresh-guangzhou.json

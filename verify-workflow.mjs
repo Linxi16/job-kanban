@@ -191,7 +191,10 @@ ok(fs.existsSync('.gitignore'), '.gitignore 必须存在（云端 git add -A 依
 if (fs.existsSync('.gitignore')) {
   const gi = fs.readFileSync('.gitignore', 'utf8');
   ok(/^\.tmp-\*\/?$/m.test(gi), '.gitignore 需忽略 .tmp-*（回归夹具目录）');
-  ok(/^归档\/$/m.test(gi), '.gitignore 需忽略 归档/');
+  /* 2026-10-21：归档只保留最近 3 份看板数据快照（JSON 入库、HTML 不入库）；
+     data/ 是每次刷新重新生成的中间产物（20MB+），整体排除，否则仓库会无限增长 */
+  ok(/^归档\/看板-\*\.html$/m.test(gi), '.gitignore 需忽略归档里的 HTML 快照（只让 JSON 快照入库）');
+  ok(/^data\/$/m.test(gi), '.gitignore 需忽略 data/ 中间产物（每次刷新重新生成）');
   ok(/zhilian-detail\.json/m.test(gi), '.gitignore 需忽略已废弃的 data/zhilian-detail.json');
 }
 
